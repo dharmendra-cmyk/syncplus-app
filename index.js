@@ -7,13 +7,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Connect to Railway's Postgres database automatically
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
-// Create inventory table if it doesn't exist
 pool.query(`
   CREATE TABLE IF NOT EXISTS inventory (
     id SERIAL PRIMARY KEY,
@@ -22,7 +20,15 @@ pool.query(`
   )
 `).catch(err => console.error("Error creating table:", err));
 
-// Handle POST request to add item
+// NEW: Real-time webhook endpoint for Shopify & Stripe
+app.post('/api/webhooks', (req, res) => {
+  const event = req.body;
+  console.log('Received incoming Webhook event:', JSON.stringify(event));
+
+  // Respond back immediately with 200 OK so Shopify/Stripe know it was received
+  res.status(200).json({ received: true });
+});
+
 app.post('/add', async (req, res) => {
   const { productName, stockQuantity } = req.body;
   try {
@@ -37,7 +43,6 @@ app.post('/add', async (req, res) => {
   }
 });
 
-// API endpoint to fetch catalog items for the frontend
 app.get('/api/inventory', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM inventory ORDER BY id DESC');
