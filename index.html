@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SyncPlus Inventory Leak Audit</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; }
+    .container { max-width: 600px; margin: auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    h1 { color: #38bdf8; text-align: center; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    input, select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; }
+    button { width: 100%; margin-top: 20px; padding: 12px; background: #22c55e; color: #fff; font-size: 16px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #16a34a; }
+    .hidden { display: none; }
+    .results { margin-top: 25px; padding: 20px; background: #334155; border-radius: 8px; }
+    .cta-btn { display: block; text-align: center; margin-top: 20px; padding: 12px; background: #3b82f6; color: #fff; text-decoration: none; border-radius: 6px; font-weight: bold; }
+    .cta-btn:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SyncPlus Inventory Leak Audit</h1>
+    <p style="text-align: center; color: #94a3b8;">Identify revenue loss across your multi-channel inventory sync.</p>
+    
+    <form id="auditForm">
+      <label for="storeUrl">Store Domain / Name:</label>
+      <input type="text" id="storeUrl" placeholder="e.g., mybrand.com" required>
+      
+      <label for="skuVolume">SKU Volume Tier:</label>
+      <select id="skuVolume">
+        <option value="low">Low (Under 1,000 SKUs)</option>
+        <option value="mid">Mid (1,000 - 10,000 SKUs)</option>
+        <option value="high">High (10,000+ SKUs)</option>
+      </select>
+      
+      <button type="submit">Run Free Leak Audit 🚀</button>
+    </form>
+
+    <div id="resultsBox" class="results hidden">
+      <h3>Audit Results for <span id="resStore" style="color: #38bdf8;"></span></h3>
+      <p><strong>Estimated Monthly Loss:</strong> <span id="resLoss" style="color: #ef4444;"></span></p>
+      <p><strong>Potential Recovered Revenue:</strong> <span id="resRevenue" style="color: #22c55e;"></span></p>
+      <p id="resMessage" style="margin-top: 10px;"></p>
+      
+      <a id="checkoutBtn" href="#" target="_blank" class="cta-btn">Secure Regional Board Fee ($800) 🔒</a>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('auditForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const storeUrl = document.getElementById('storeUrl').value;
+      const skuVolume = document.getElementById('skuVolume').value;
+
+      try {
+        const response = await fetch('http://localhost:3000/api/run-audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ storeUrl, skuVolume })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          document.getElementById('resStore').innerText = data.store;
+          document.getElementById('resLoss').innerText = data.auditResults.estimatedMonthlyLoss;
+          document.getElementById('resRevenue').innerText = data.auditResults.potentialNewRevenue;
+          document.getElementById('resMessage').innerText = data.auditResults.message;
+          document.getElementById('checkoutBtn').href = data.auditResults.stripeCheckoutUrl;
+          document.getElementById('resultsBox').classList.remove('hidden');
+        }
+      } catch (err) {
+        alert('Error connecting to the audit backend server.');
+      }
+    });
+  </script>
+</body>
+</html>
