@@ -1,19 +1,10 @@
 {
-  "name": "syncplus-enterprise",
+  "name": "syncplus-app",
   "version": "1.0.0",
-  "description": "Autonomous Multi-Channel Inventory Engine",
+  "description": "",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
   "dependencies": {
-    "dotenv": "^17.4.2",
-    "express": "^4.18.2",
-    "nodemailer": "^9.0.5",
-    "sqlite3": "^5.1.7",
-    "stripe": "^22.5.0"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+    "express": "^4.19.2",
+    "pg": "^8.11.3"
+  }
 }
