@@ -1,0 +1,23 @@
+client_id = "76a38658617eae5b7d726c95c14156ff"
+name = "SyncPlus"
+application_url = "https://ahluwaliasstrategicventure.com"
+embedded = true
+
+[access_scopes]
+scopes = ""
+optional_scopes = []
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = []
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+uri = "/api/webhooks"
+compliance_topics = [
+  "customers/data_request",
+  "customers/redact",
+  "shop/redact"
+]
