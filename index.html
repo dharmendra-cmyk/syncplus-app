@@ -31,49 +31,55 @@
         label {
             display: block;
             margin-bottom: 8px;
-            font-size: 13px;
-            color: #d1d5db;
+            font-size: 14px;
+            font-weight: 500;
         }
         input {
             width: 100%;
-            padding: 12px;
+            padding: 10px 12px;
             border-radius: 6px;
             border: 1px solid #374151;
             background-color: #1f2937;
-            color: white;
+            color: #ffffff;
             box-sizing: border-box;
-            font-size: 14px;
-        }
-        input:focus {
-            outline: none;
-            border-color: #10b981;
         }
         button {
             width: 100%;
             padding: 12px;
+            border-radius: 6px;
+            border: none;
             background-color: #10b981;
             color: white;
-            border: none;
-            border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
-            font-size: 15px;
-            transition: background-color 0.2s;
         }
         button:hover {
             background-color: #059669;
         }
+        .stripe-btn {
+            display: block;
+            width: 100%;
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            background-color: #635bff;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            font-weight: bold;
+            box-sizing: border-box;
+        }
+        .stripe-btn:hover {
+            background-color: #5851db;
+        }
     </style>
 </head>
 <body>
-
     <div class="card">
-        <h2>⚡ SyncPlus Enterprise Core</h2>
+        <h2>SyncPlus Enterprise Core</h2>
         <p>Autonomous Multi-Channel Inventory Engine - Shopify Connected</p>
-        <hr style="border: 0; border-top: 1px solid #1f2937; margin: 20px 0;">
-
-        <h3>Add New Inventory Item</h3>
-        <form action="/add" method="POST">
+        
+        <form action="/add-product" method="POST">
             <div class="form-group">
                 <label for="productName">Product Name</label>
                 <input type="text" id="productName" name="productName" placeholder="e.g. Ergonomic Keyboard" required>
@@ -84,7 +90,10 @@
             </div>
             <button type="submit">Commit Product to Database</button>
         </form>
-    </div>
 
+        <a href="https://buy.stripe.com/dRm00j2UF9K81LufllgA800" target="_blank" class="stripe-btn">
+            Upgrade to Managed Audit ($99)
+        </a>
+    </div>
 </body>
 </html>
