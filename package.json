@@ -1,10 +1,17 @@
 {
   "name": "syncplus-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "Inventory sync and audit app for Shopify",
   "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "express": "^4.19.2",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "stripe": "^14.25.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
