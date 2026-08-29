@@ -1,81 +1,66 @@
 const express = require('express');
 const { Pool } = require('pg');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')('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');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 
-// PostgreSQL Connection Pool using Railway's environment variables
+// PostgreSQL Connection
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Middleware to parse form data and JSON
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
-// Initialize Database Table if it doesn't exist
-pool.query(`
-    CREATE TABLE IF NOT EXISTS inventory (
+// Initialize Database Table
+async function initDb() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
         id SERIAL PRIMARY KEY,
-        product_name VARCHAR(255) NOT NULL,
-        stock_quantity INTEGER NOT NULL,
+        session_id TEXT,
+        status TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-`).catch(err => console.error('Error creating table:', err));
+      )
+    `);
+    console.log("Database table verified/created successfully.");
+  } catch (err) {
+    console.error("Error creating table:", err);
+  }
+}
 
-// Serve Frontend Dashboard
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-});
+initDb();
 
-// Handle Form Submission to Database
-app.post('/commit', async (req, res) => {
-    const { productName, stockQuantity } = req.body;
-    try {
-        await pool.query(
-            'INSERT INTO inventory (product_name, stock_quantity) VALUES ($1, $2)',
-            [productName, stockQuantity]
-        );
-        res.redirect('/?success=db');
-    } catch (err) {
-        console.error('Database error:', err);
-        res.status(500).send('Error saving to database');
-    }
-});
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Dynamic Stripe Checkout Session Endpoint with Detailed Logging
+// Serve static frontend files if applicable, or keep your routes
+// Example checkout endpoint:
 app.post('/create-checkout-session', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: 'SyncPlus Managed Audit & Sync',
-              description: 'Full automated inventory setup & 30-day post-stocky audit',
-            },
-            unit_amount: 9900, // $99.00 USD
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'Managed Audit & Sync',
           },
-          quantity: 1,
+          unit_amount: 9900, // $99.00
         },
-      ],
+        quantity: 1,
+      }],
       mode: 'payment',
-      success_url: 'https://syncplus-app-production.up.railway.app/?success=true',
-      cancel_url: 'https://syncplus-app-production.up.railway.app/?canceled=true',
+      success_url: `${req.protocol}://${req.get('host')}/success.html`,
+      cancel_url: `${req.protocol}://${req.get('host')}/cancel.html`,
     });
 
     res.json({ url: session.url });
-  } catch (e) {
-    console.error('STRIPE ERROR:', e.message); // This will print the exact reason in your Railway logs!
-    res.status(500).json({ error: e.message });
+  } catch (error) {
+    console.error("STRIPE ERROR:", error.message);
+    res.status(500).json({ error: "Error starting checkout session." });
   }
 });
 
-// Start Server
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
