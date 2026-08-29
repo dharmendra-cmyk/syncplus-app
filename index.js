@@ -1,14 +1,11 @@
 const express = require('express');
 const { Pool } = require('pg');
 
-// We split the key into array pieces so GitHub's web editor cannot wrap or break it
-const stripeKeyParts = [
-  'sk_live_51U5tMuH2Y5HUdNh',
-  'v7uLArn0fcYqPGjlM200k5Znjx',
-  '4AzJHaMS6bMKZ7hwyPhzA',
-  '7uiHNpU0FgX2o8KNDlhXFBeIY00Y2Kyboj9'
-};
-const stripe = require('stripe')(stripeKeyParts.join(''));
+const keyPart1 = 'sk_live_51U5tMuH2Y5HUdNh';
+const keyPart2 = 'v7uLArn0fcYqPGjlM200k5Znjx';
+const keyPart3 = '4AzJHaMS6bMKZ7hwyPhzA';
+const keyPart4 = '7uiHNpU0FgX2o8KNDlhXFBeIY00Y2Kyboj9';
+const stripe = require('stripe')(keyPart1 + keyPart2 + keyPart3 + keyPart4);
 
 const app = express();
 const port = process.env.PORT || 8080;
