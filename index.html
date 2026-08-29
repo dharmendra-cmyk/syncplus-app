@@ -3,104 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncPlus Enterprise Core</title>
+    <title>SyncPlus - Pricing & Subscriptions</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #0b0f19;
             color: #f3f4f6;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             margin: 0;
-            padding: 20px;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .card {
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 { color: #ffffff; margin-bottom: 10px; }
+        .header p { color: #9ca3af; font-size: 16px; }
+        
+        .pricing-container {
+            display: flex;
+            gap: 24px;
+            width: 100%;
+            max-width: 900px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .pricing-card {
             background-color: #111827;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            width: 100%;
-            max-width: 500px;
             border: 1px solid #1f2937;
-        }
-        h2 { margin-top: 0; color: #ffffff; }
-        p { color: #9ca3af; font-size: 14px; line-height: 1.5; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
-        input {
+            border-radius: 12px;
+            padding: 32px;
             width: 100%;
-            padding: 10px 12px;
-            background-color: #1f2937;
-            border: 1px solid #374151;
-            border-radius: 6px;
-            color: white;
-            font-size: 14px;
-            box-sizing: border-box;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
-        input:focus { outline: none; border-color: #6366f1; }
-        button.btn-primary {
-            background-color: #10b981;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
-            font-weight: 600;
-            margin-bottom: 12px;
+        .pricing-card.featured {
+            border-color: #6366f1;
+            position: relative;
         }
-        button.btn-primary:hover { background-color: #059669; }
-        .btn-upgrade {
+        .badge {
             background-color: #6366f1;
             color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            position: absolute;
+            top: -12px;
+            right: 24px;
             font-weight: 600;
         }
-        .btn-upgrade:hover { background-color: #4f46e5; }
-        .footer-info {
-            margin-top: 24px;
-            border-top: 1px solid #1f2937;
-            padding-top: 16px;
-            font-size: 12px;
-            color: #6b7280;
-            text-align: center;
+        h3 { margin-top: 0; color: #ffffff; font-size: 22px; }
+        .price { font-size: 36px; font-weight: 700; color: #ffffff; margin: 16px 0; }
+        .price span { font-size: 14px; color: #9ca3af; font-weight: normal; }
+        ul { padding-left: 20px; color: #9ca3af; font-size: 14px; line-height: 1.6; margin-bottom: 32px; }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
         }
+        .btn-free { background-color: #1f2937; color: #f3f4f6; }
+        .btn-pro { background-color: #6366f1; color: white; }
+        .btn-pro:hover { background-color: #4f46e5; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>SyncPlus Enterprise Core</h2>
-        <p><strong>Autonomous Multi-Channel Inventory Engine - Shopify Connected</strong></p>
-        <p>SyncPlus provides real-time automated inventory mapping, stock tracking, and multi-channel synchronization for online merchants.</p>
-        
-        <form action="/commit" method="POST">
-            <div class="form-group">
-                <label for="productName">Product Name</label>
-                <input type="text" id="productName" name="productName" placeholder="e.g. Ergonomic Keyboard" required>
-            </div>
-            <div class="form-group">
-                <label for="stockQuantity">Initial Stock Quantity</label>
-                <input type="number" id="stockQuantity" name="stockQuantity" placeholder="e.g. 250" required>
-            </div>
-            <button type="submit" class="btn-primary">Commit Product to Database</button>
-        </form>
 
-        <a href="https://buy.stripe.com/7sYbJ17aVgMA1Lu6OPgA801" target="_blank" style="text-decoration: none;">
-            <button type="button" class="btn-upgrade">Upgrade to Managed Audit ($99 USD)</button>
-        </a>
+    <div class="header">
+        <h1>Choose Your SyncPlus Plan</h1>
+        <p>Scale your automated inventory and multi-channel synchronization seamlessly.</p>
+    </div>
 
-        <div class="footer-info">
-            <p>Pricing: Managed Inventory Migration & Audit service is priced at $99.00 USD (One-time fee).</p>
-            <p>Support Contact: support@syncplus.app</p>
+    <div class="pricing-container">
+        <div class="pricing-card">
+            <div>
+                <h3>Starter Sync</h3>
+                <div class="price">$0 <span>/ forever</span></div>
+                <ul>
+                    <li>Manual inventory updates</li>
+                    <li>Single Shopify channel mapping</li>
+                    <li>Community support via email</li>
+                </ul>
+            </div>
+            <button class="btn-free">Current Plan</button>
+        </div>
+
+        <div class="pricing-card featured">
+            <div class="badge">Most Popular</div>
+            <div>
+                <h3>Managed Audit & Sync</h3>
+                <div class="price">$99 <span>USD / one-time</span></div>
+                <ul>
+                    <li>Full automated inventory setup & migration</li>
+                    <li>Real-time multi-channel background sync</li>
+                    <li>Priority support & 30-day post-stocky audit</li>
+                </ul>
+            </div>
+            <a href="https://buy.stripe.com/7sYbJ17aVgMA1Lu6OPgA801" target="_blank" style="text-decoration: none;">
+                <button class="btn-pro">Upgrade Now ($99)</button>
+            </a>
         </div>
     </div>
+
 </body>
 </html>
