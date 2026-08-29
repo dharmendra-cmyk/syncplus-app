@@ -12,28 +12,23 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
         }
         .card {
             background-color: #111827;
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            width: 500px;
+            width: 100%;
+            max-width: 500px;
             border: 1px solid #1f2937;
         }
         h2 { margin-top: 0; color: #ffffff; }
-        p { color: #9ca3af; font-size: 14px; }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 14px;
-            font-weight: 500;
-        }
+        p { color: #9ca3af; font-size: 14px; line-height: 1.5; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
         input {
             width: 100%;
             padding: 10px 12px;
@@ -44,10 +39,7 @@
             font-size: 14px;
             box-sizing: border-box;
         }
-        input:focus {
-            outline: none;
-            border-color: #6366f1;
-        }
+        input:focus { outline: none; border-color: #6366f1; }
         button.btn-primary {
             background-color: #10b981;
             color: white;
@@ -60,9 +52,7 @@
             font-weight: 600;
             margin-bottom: 12px;
         }
-        button.btn-primary:hover {
-            background-color: #059669;
-        }
+        button.btn-primary:hover { background-color: #059669; }
         .btn-upgrade {
             background-color: #6366f1;
             color: white;
@@ -74,15 +64,22 @@
             width: 100%;
             font-weight: 600;
         }
-        .btn-upgrade:hover {
-            background-color: #4f46e5;
+        .btn-upgrade:hover { background-color: #4f46e5; }
+        .footer-info {
+            margin-top: 24px;
+            border-top: 1px solid #1f2937;
+            padding-top: 16px;
+            font-size: 12px;
+            color: #6b7280;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div class="card">
         <h2>SyncPlus Enterprise Core</h2>
-        <p>Autonomous Multi-Channel Inventory Engine - Shopify Connected</p>
+        <p><strong>Autonomous Multi-Channel Inventory Engine - Shopify Connected</strong></p>
+        <p>SyncPlus provides real-time automated inventory mapping, stock tracking, and multi-channel synchronization for online merchants.</p>
         
         <form action="/commit" method="POST">
             <div class="form-group">
@@ -97,8 +94,13 @@
         </form>
 
         <a href="https://buy.stripe.com/7sYbJ17aVgMA1Lu6OPgA801" target="_blank" style="text-decoration: none;">
-            <button type="button" class="btn-upgrade">Upgrade to Managed Audit ($99)</button>
+            <button type="button" class="btn-upgrade">Upgrade to Managed Audit ($99 USD)</button>
         </a>
+
+        <div class="footer-info">
+            <p>Pricing: Managed Inventory Migration & Audit service is priced at $99.00 USD (One-time fee).</p>
+            <p>Support Contact: support@syncplus.app</p>
+        </div>
     </div>
 </body>
 </html>
