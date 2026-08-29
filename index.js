@@ -1,10 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
-
-// Clean up any accidental line breaks or spaces automatically
-const rawKey = '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';
-const cleanKey = rawKey.replace(/[\r\n]+/g, '');
-const stripe = require('stripe')(cleanKey);
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 8080;
