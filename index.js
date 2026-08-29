@@ -33,8 +33,12 @@ initDb();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static frontend files if applicable, or keep your routes
-// Example checkout endpoint:
+// Serve the frontend UI homepage
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
+
+// Create Stripe Checkout Session
 app.post('/create-checkout-session', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
