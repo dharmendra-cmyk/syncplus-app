@@ -86,6 +86,7 @@
     </div>
 
     <div class="pricing-container">
+        <!-- Free Tier -->
         <div class="pricing-card">
             <div>
                 <h3>Starter Sync</h3>
@@ -99,6 +100,7 @@
             <button class="btn-free">Current Plan</button>
         </div>
 
+        <!-- Pro / Enterprise Tier -->
         <div class="pricing-card featured">
             <div class="badge">Most Popular</div>
             <div>
@@ -110,11 +112,31 @@
                     <li>Priority support & 30-day post-stocky audit</li>
                 </ul>
             </div>
-            <a href="https://buy.stripe.com/7sYbJ17aVgMA1Lu6OPgA801" target="_blank" style="text-decoration: none;">
-                <button class="btn-pro">Upgrade Now ($99)</button>
-            </a>
+            <button class="btn-pro" onclick="startCheckout()">Upgrade Now ($99)</button>
         </div>
     </div>
+
+    <script>
+    async function startCheckout() {
+        try {
+            const response = await fetch('/create-checkout-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            const data = await response.json();
+            if (data.url) {
+                window.location.href = data.url; // Redirects to dynamic Stripe Checkout
+            } else {
+                alert('Error starting checkout session.');
+            }
+        } catch (err) {
+            console.error('Error:', err);
+            alert('Network error connecting to payment server.');
+        }
+    }
+    </script>
 
 </body>
 </html>
