@@ -1,11 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
 
-// Base64 encoded version of your full live key so it never gets truncated or scanned
-const encodedKey = 'c2tfbGl2ZV81VTV0TXVIMllNSFVkTmh2N3VMYXJuMGZjWXFQR2psTTIwMms1Wm5qeDRBekpJYU1TNmJNS1o3aHd5UGh6QTd1aUhOcFUwRmdYNm84S05EbGhYRkJlSVkwMFlLS3lvajk=';
-const decodedKey = Buffer.from(encodedKey, 'base64').toString('utf8');
-
-const stripe = require('stripe')(decodedKey);
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 8080;
