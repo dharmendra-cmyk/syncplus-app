@@ -1,13 +1,14 @@
 const express = require('express');
 const { Pool } = require('pg');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // PostgreSQL Connection Pool using Railway's environment variables
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 // Middleware to parse form data and JSON
@@ -16,53 +17,64 @@ app.use(express.json());
 
 // Initialize Database Table if it doesn't exist
 pool.query(`
-  CREATE TABLE IF NOT EXISTS inventory (
-    id SERIAL PRIMARY KEY,
-    product_name VARCHAR(255) NOT NULL,
-    stock_quantity INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
+    CREATE TABLE IF NOT EXISTS inventory (
+        id SERIAL PRIMARY KEY,
+        product_name VARCHAR(255) NOT NULL,
+        stock_quantity INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
 `).catch(err => console.error('Error creating table:', err));
 
 // Serve Frontend Dashboard
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+    res.sendFile(__dirname + '/index.html');
 });
 
-// Route to Add Inventory Item from Dashboard
-app.post('/add-product', async (req, res) => {
-  const { productName, stockQuantity } = req.body;
+// Handle Form Submission to Database
+app.post('/commit', async (req, res) => {
+    const { productName, stockQuantity } = req.body;
+    try {
+        await pool.query(
+            'INSERT INTO inventory (product_name, stock_quantity) VALUES ($1, $2)',
+            [productName, stockQuantity]
+        );
+        res.redirect('/?success=db');
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).send('Error saving to database');
+    }
+});
+
+// Dynamic Stripe Checkout Session Endpoint
+app.post('/create-checkout-session', async (req, res) => {
   try {
-    const query = 'INSERT INTO inventory (product_name, stock_quantity) VALUES ($1, $2) RETURNING *';
-    await pool.query(query, [productName, stockQuantity]);
-    
-    res.send(`
-      <div style="font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #0b0f19; color: #f3f4f6; height: 100vh; padding-top: 50px;">
-        <h2 style="color: #10b981;">Successfully added "${productName}" with ${stockQuantity} units to your PostgreSQL database!</h2>
-        <a href="/" style="color: #635bff; text-decoration: none; font-weight: bold; background: #111827; padding: 10px 20px; border-radius: 6px; border: 1px solid #374151;">Go Back</a>
-      </div>
-    `);
-  } catch (err) {
-    console.error('Database insertion error:', err);
-    res.status(500).send('Error saving product to database.');
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'SyncPlus Managed Audit & Sync',
+              description: 'Full automated inventory setup & 30-day post-stocky audit',
+            },
+            unit_amount: 9900, // $99.00 USD
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: 'https://syncplus-app-production.up.railway.app/?success=true',
+      cancel_url: 'https://syncplus-app-production.up.railway.app/?canceled=true',
+    });
+
+    res.json({ url: session.url });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-});
-
-// Stripe Webhook Endpoint for Payment Automation
-app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  const event = req.body;
-
-  // Handle successful payment events from Stripe
-  if (event.type === 'checkout.session.completed' || event.type === 'invoice.payment_succeeded') {
-    const paymentObject = event.data.object;
-    console.log('Payment successful received from Stripe:', paymentObject.id);
-    // Add custom post-payment logic here (e.g., updating user subscription status or license generation)
-  }
-
-  res.json({ received: true });
 });
 
 // Start Server
 app.listen(port, () => {
-  console.log(`SyncPlus Enterprise Core running on port ${port}`);
+    console.log(`Server running on port ${port}`);
 });
