@@ -1,6 +1,9 @@
 const express = require('express');
 const { Pool } = require('pg');
 
+// Directly use your full, valid Stripe live secret key here
+const stripe = require('stripe')('sk_live_YOUR_ACTUAL_FULL_STRIPE_KEY_HERE');
+
 const app = express();
 const port = process.env.PORT || 8080;
 
@@ -18,15 +21,6 @@ app.get('/', (req, res) => {
 
 app.post('/create-checkout-session', async (req, res) => {
   try {
-    // Uses Railway variable first, falls back to concatenated string
-    const keyPart1 = 'sk_live_51U5tMuH2Y5HUdNh';
-    const keyPart2 = 'v7uLArn0fcYqPGjlM200k5Znjx';
-    const keyPart3 = '4AzJHaMS6bMKZ7hwyPhzA';
-    const keyPart4 = '7uiHNpU0FgX2o8KNDlhXFBeIY00Y2Kyboj9';
-    const secretKey = process.env.STRIPE_SECRET_KEY || (keyPart1 + keyPart2 + keyPart3 + keyPart4);
-
-    const stripe = require('stripe')(secretKey.trim());
-
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -41,11 +35,9 @@ app.post('/create-checkout-session', async (req, res) => {
       success_url: `${req.protocol}://${req.get('host')}/success.html`,
       cancel_url: `${req.protocol}://${req.get('host')}/cancel.html`,
     });
-
     res.json({ url: session.url });
   } catch (error) {
-    console.error("STRIPE ERROR:", error);
-    // Returns the exact detailed error message to the browser popup
+    console.error("STRIPE ERROR:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
