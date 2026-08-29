@@ -45,7 +45,7 @@ app.post('/commit', async (req, res) => {
     }
 });
 
-// Dynamic Stripe Checkout Session Endpoint
+// Dynamic Stripe Checkout Session Endpoint with Detailed Logging
 app.post('/create-checkout-session', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
@@ -70,6 +70,7 @@ app.post('/create-checkout-session', async (req, res) => {
 
     res.json({ url: session.url });
   } catch (e) {
+    console.error('STRIPE ERROR:', e.message); // This will print the exact reason in your Railway logs!
     res.status(500).json({ error: e.message });
   }
 });
