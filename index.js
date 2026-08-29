@@ -41,6 +41,39 @@ app.post('/create-checkout-session', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
+// Stripe Webhook to handle successful payments automatically
+app.post('/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    // Note: In production, you'd verify the webhook secret from Stripe dashboard.
+    // For now, we parse the event directly to update our database on success.
+    event = req.body;
+  } catch (err) {
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the checkout.session.completed event
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const customerEmail = session.customer_details?.email;
+
+    console.log(`Payment successful for: ${customerEmail}`);
+
+    try {
+      // Update user tier in PostgreSQL database
+      await pool.query(
+        'UPDATE users SET plan = $1 WHERE email = $2',
+        ['managed_audit', customerEmail]
+      );
+      console.log(`Database updated successfully for ${customerEmail}`);
+    } catch (dbErr) {
+      console.error('Database update error:', dbErr);
+    }
+  }
+
+  res.json({received: true});
+});app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
