@@ -22,7 +22,7 @@ app.post('/create-checkout-session', async (req, res) => {
 
     res.json({ id: session.id });
   } catch (error) {
-    res.status(500യില).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
