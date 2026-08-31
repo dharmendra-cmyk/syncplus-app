@@ -1,183 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncPlus | Real-Time Inventory Sync & Overselling Prevention for Shopify</title>
-    <meta name="description" content="Eliminate inventory mismatches between your Shopify POS, online store, and suppliers with automated real-time database locks.">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #030712;
-            color: #f8fafc;
-            line-height: 1.6;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 60px 20px;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            margin-bottom: 24px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #818cf8;
-            background-color: rgba(49, 46, 129, 0.6);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            border-radius: 9999px;
-        }
-        h1 {
-            font-size: 38px;
-            font-weight: 800;
-            letter-spacing: -0.025em;
-            margin-bottom: 20px;
-        }
-        .subtitle {
-            font-size: 18px;
-            color: #cbd5e1;
-            margin-bottom: 40px;
-            line-height: 1.7;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-            gap: 20px;
-            margin-bottom: 60px;
-        }
-        .card {
-            background-color: #0f172a;
-            border: 1px solid #1e293b;
-            border-radius: 12px;
-            padding: 24px;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-            transition: border-color 0.2s;
-        }
-        .card:hover {
-            border-color: #6366f1;
-        }
-        .card h3 {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #fff;
-        }
-        .card p {
-            font-size: 14px;
-            color: #94a3b8;
-            margin: 0;
-        }
-        .steps-section {
-            border-top: 1px solid #1e293b;
-            padding-top: 50px;
-        }
-        .steps-section h2 {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 30px;
-            color: #fff;
-        }
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 20px;
-        }
-        .step-card {
-            background-color: rgba(15, 23, 42, 0.5);
-            border: 1px solid #1e293b;
-            border-radius: 12px;
-            padding: 24px;
-        }
-        .step-number {
-            font-family: monospace;
-            font-size: 12px;
-            color: #818cf8;
-            margin-bottom: 8px;
-        }
-        .step-card h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #fff;
-        }
-        .step-card p {
-            font-size: 14px;
-            color: #94a3b8;
-            margin: 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SyncPulse - Multi-Location Inventory Sync & Stocky Alternative</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="badge">
-        SyncPlus Enterprise Engine
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+  <!-- Hero Section for Stocky Migration -->
+  <header class="bg-white border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-purple-600">SyncPulse</h1>
+      <button onclick="startCheckout()" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-purple-700 transition">
+        Upgrade to Pro
+      </button>
     </div>
+  </header>
 
-    <h1>Never Lose Another Sale to Inventory Discrepancies.</h1>
-
-    <p class="subtitle">
-        SyncPlus bridges the gap between physical point-of-sale registers, digital storefronts, and multi-vendor supplier networks with instant database locking. Select your specific challenge below:
+  <main class="max-w-4xl mx-auto px-4 py-16 text-center">
+    <span class="bg-purple-100 text-purple-700 text-sm font-semibold px-3 py-1 rounded-full uppercase tracking-wide">
+      Stocky Shutdown Alternative
+    </span>
+    <h2 class="text-4xl font-extrabold tracking-tight sm:text-5xl mt-4 mb-6">
+      Keep Your Multi-Location Inventory in Sync Instantly.
+    </h2>
+    <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+      Seamless inventory synchronization and overselling protection designed specifically for Shopify merchants transitioning away from Stocky.
     </p>
 
-    <!-- Solution Grid -->
-    <div class="grid">
-        <a href="pos-sync-fix.html" class="card">
-            <h3>POS Not Syncing Stock &rarr;</h3>
-            <p>Fix lagging inventory updates between physical registers and online stores.</p>
-        </a>
-        <a href="inventory-fix.html" class="card">
-            <h3>Inventory Off After Sale &rarr;</h3>
-            <p>Resolve race conditions and delayed webhook processing issues.</p>
-        </a>
-        <a href="collective-fix.html" class="card">
-            <h3>Shopify Collective Fix &rarr;</h3>
-            <p>Keep multi-vendor supplier stock levels accurately mapped and updated.</p>
-        </a>
-        <a href="bundle-sync-fix.html" class="card">
-            <h3>Bundle Stock Sync &rarr;</h3>
-            <p>Automatically decrement individual component inventory when bundles sell.</p>
-        </a>
-        <a href="sync-lag-fix.html" class="card">
-            <h3>Inventory Sync Lag &rarr;</h3>
-            <p>Eliminate multi-location propagation delays during high-traffic events.</p>
-        </a>
-        <a href="b2b-sync-fix.html" class="card">
-            <h3>B2B Wholesale Inventory Mismatch &rarr;</h3>
-            <p>Partition and sync inventory safely between retail and B2B channels.</p>
-        </a>
-        <a href="auto-hide-fix.html" class="card">
-            <h3>Out of Stock Auto-Hide &rarr;</h3>
-            <p>Instantly unpublish zero-stock products to stop dead-end shopper traffic.</p>
-        </a>
-        <a href="prevent-overselling.html" class="card">
-            <h3>Prevent Overselling &rarr;</h3>
-            <p>Deploy instant atomic locking to stop stockouts during flash sales.</p>
-        </a>
+    <!-- Call to Action Upgrade Box -->
+    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 max-w-lg mx-auto">
+      <h3 class="text-2xl font-bold mb-2">SyncPulse Pro Plan</h3>
+      <p class="text-gray-500 mb-6">Real-time sync, multi-location mapping, and automated safety stock protection.</p>
+      <button onclick="startCheckout()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-semibold text-lg hover:bg-purple-700 shadow-md transition">
+        Start Your Free Migration Trial
+      </button>
+      <p class="text-xs text-gray-400 mt-4">Secure payment processing powered by Stripe.</p>
     </div>
+  </main>
 
-    <!-- Step-by-Step Guide Section -->
-    <div class="steps-section">
-        <h2>How Our Managed Setup Works</h2>
-        
-        <div class="steps-grid">
-            <div class="step-card">
-                <div class="step-number">STEP 01</div>
-                <h3>Select Your Challenge</h3>
-                <p>Choose the specific inventory bottleneck impacting your store above and complete the secure $99 checkout.</p>
-            </div>
-            
-            <div class="step-card">
-                <div class="step-number">STEP 02</div>
-                <h3>We Audit Your Setup</h3>
-                <p>Our engineering team reviews your webhook architecture, multi-location mapping, and variant rules.</p>
-            </div>
-            
-            <div class="step-card">
-                <div class="step-number">STEP 03</div>
-                <h3>Real-Time Sync Deployed</h3>
-                <p>We implement atomic database locks and custom routing so your inventory stays permanently accurate.</p>
-            </div>
-        </div>
-    </div>
+  <script>
+    async function startCheckout() {
+      try {
+        const response = await fetch('/create-checkout-session', { method: 'POST' });
+        const data = await response.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        console.error('Error connecting to checkout:', err);
+        alert('Network error while starting checkout.');
+      }
+    }
+  </script>
+
 </body>
 </html>
