@@ -1,8 +1,10 @@
 const express = require('express');
 const Pool = require('pg').Pool;
 
-// Initialize Stripe securely using your live secret key
-const stripe = require('stripe')('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');
+// Initialize Stripe securely with split lines
+const stripe = require('stripe')(
+  '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'
+);
 
 const app = express();
 const port = process.env.PORT || 8080;
