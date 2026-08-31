@@ -5,82 +5,179 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SyncPlus | Real-Time Inventory Sync & Overselling Prevention for Shopify</title>
     <meta name="description" content="Eliminate inventory mismatches between your Shopify POS, online store, and suppliers with automated real-time database locks.">
-    <link rel="stylesheet" href="/styles.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #030712;
+            color: #f8fafc;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            margin-bottom: 24px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #818cf8;
+            background-color: rgba(49, 46, 129, 0.6);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 9999px;
+        }
+        h1 {
+            font-size: 38px;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            margin-bottom: 20px;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #cbd5e1;
+            margin-bottom: 40px;
+            line-height: 1.7;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 20px;
+            margin-bottom: 60px;
+        }
+        .card {
+            background-color: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            transition: border-color 0.2s;
+        }
+        .card:hover {
+            border-color: #6366f1;
+        }
+        .card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        .card p {
+            font-size: 14px;
+            color: #94a3b8;
+            margin: 0;
+        }
+        .steps-section {
+            border-top: 1px solid #1e293b;
+            padding-top: 50px;
+        }
+        .steps-section h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .step-card {
+            background-color: rgba(15, 23, 42, 0.5);
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .step-number {
+            font-family: monospace;
+            font-size: 12px;
+            color: #818cf8;
+            margin-bottom: 8px;
+        }
+        .step-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #fff;
+        }
+        .step-card p {
+            font-size: 14px;
+            color: #94a3b8;
+            margin: 0;
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans antialiased">
-    <main class="max-w-4xl mx-auto px-6 py-20">
-        <div class="inline-block px-3 py-1 mb-6 text-xs font-semibold text-indigo-400 bg-indigo-950/60 border border-indigo-850/50 rounded-full">
-            SyncPlus Enterprise Engine
-        </div>
+<body>
+    <div class="badge">
+        SyncPlus Enterprise Engine
+    </div>
 
-        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-6">
-            Never Lose Another Sale to Inventory Discrepancies.
-        </h1>
+    <h1>Never Lose Another Sale to Inventory Discrepancies.</h1>
 
-        <p class="text-lg text-slate-300 mb-10 leading-relaxed">
-            SyncPlus bridges the gap between physical point-of-sale registers, digital storefronts, and multi-vendor supplier networks with instant database locking. Select your specific challenge below:
-        </p>
+    <p class="subtitle">
+        SyncPlus bridges the gap between physical point-of-sale registers, digital storefronts, and multi-vendor supplier networks with instant database locking. Select your specific challenge below:
+    </p>
 
-        <!-- Solution Grid -->
-        <div class="grid md:grid-cols-2 gap-6 mb-16">
-            <a href="pos-sync-fix.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">POS Not Syncing Stock &rarr;</h3>
-                <p class="text-slate-400 text-sm">Fix lagging inventory updates between physical registers and online stores.</p>
-            </a>
-            <a href="inventory-fix.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">Inventory Off After Sale &rarr;</h3>
-                <p class="text-slate-400 text-sm">Resolve race conditions and delayed webhook processing issues.</p>
-            </a>
-            <a href="collective-fix.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">Shopify Collective Fix &rarr;</h3>
-                <p class="text-slate-400 text-sm">Keep multi-vendor supplier stock levels accurately mapped and updated.</p>
-            </a>
-            <a href="bundle-sync-fix.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">Bundle Stock Sync &rarr;</h3>
-                <p class="text-slate-400 text-sm">Automatically decrement individual component inventory when bundles sell.</p>
-            </a>
-            <a href="sync-lag-fix.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">Inventory Sync Lag &rarr;</h3>
-                <p class="text-slate-400 text-sm">Eliminate multi-location propagation delays during high-traffic events.</p>
-            </a>
-            <a href="b2b-sync-fix.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">B2B Wholesale Inventory Mismatch &rarr;</h3>
-                <p class="text-slate-400 text-sm">Partition and sync inventory safely between retail and B2B channels.</p>
-            </a>
-            <a href="auto-hide-fix.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">Out of Stock Auto-Hide &rarr;</h3>
-                <p class="text-slate-400 text-sm">Instantly unpublish zero-stock products to stop dead-end shopper traffic.</p>
-            </a>
-            <a href="prevent-overselling.html" class="block bg-slate-900 border border-slate-800 hover:border-indigo-500 rounded-xl p-6 transition-all">
-                <h3 class="text-xl font-semibold mb-2 text-white">Prevent Overselling &rarr;</h3>
-                <p class="text-slate-400 text-sm">Deploy instant atomic locking to stop stockouts during flash sales.</p>
-            </a>
-        </div>
+    <!-- Solution Grid -->
+    <div class="grid">
+        <a href="pos-sync-fix.html" class="card">
+            <h3>POS Not Syncing Stock &rarr;</h3>
+            <p>Fix lagging inventory updates between physical registers and online stores.</p>
+        </a>
+        <a href="inventory-fix.html" class="card">
+            <h3>Inventory Off After Sale &rarr;</h3>
+            <p>Resolve race conditions and delayed webhook processing issues.</p>
+        </a>
+        <a href="collective-fix.html" class="card">
+            <h3>Shopify Collective Fix &rarr;</h3>
+            <p>Keep multi-vendor supplier stock levels accurately mapped and updated.</p>
+        </a>
+        <a href="bundle-sync-fix.html" class="card">
+            <h3>Bundle Stock Sync &rarr;</h3>
+            <p>Automatically decrement individual component inventory when bundles sell.</p>
+        </a>
+        <a href="sync-lag-fix.html" class="card">
+            <h3>Inventory Sync Lag &rarr;</h3>
+            <p>Eliminate multi-location propagation delays during high-traffic events.</p>
+        </a>
+        <a href="b2b-sync-fix.html" class="card">
+            <h3>B2B Wholesale Inventory Mismatch &rarr;</h3>
+            <p>Partition and sync inventory safely between retail and B2B channels.</p>
+        </a>
+        <a href="auto-hide-fix.html" class="card">
+            <h3>Out of Stock Auto-Hide &rarr;</h3>
+            <p>Instantly unpublish zero-stock products to stop dead-end shopper traffic.</p>
+        </a>
+        <a href="prevent-overselling.html" class="card">
+            <h3>Prevent Overselling &rarr;</h3>
+            <p>Deploy instant atomic locking to stop stockouts during flash sales.</p>
+        </a>
+    </div>
 
-        <!-- Step-by-Step Guide Section -->
-        <div class="border-t border-slate-800 pt-12">
-            <h2 class="text-2xl font-bold mb-8 text-white">How Our Managed Setup Works</h2>
+    <!-- Step-by-Step Guide Section -->
+    <div class="steps-section">
+        <h2>How Our Managed Setup Works</h2>
+        
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-number">STEP 01</div>
+                <h3>Select Your Challenge</h3>
+                <p>Choose the specific inventory bottleneck impacting your store above and complete the secure $99 checkout.</p>
+            </div>
             
-            <div class="grid md:grid-cols-3 gap-6">
-                <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-                    <div class="text-indigo-400 font-mono text-sm mb-2">STEP 01</div>
-                    <h3 class="text-lg font-semibold mb-2 text-white">Select Your Challenge</h3>
-                    <p class="text-slate-400 text-sm">Choose the specific inventory bottleneck impacting your store above and complete the secure $99 checkout.</p>
-                </div>
-                
-                <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-                    <div class="text-indigo-400 font-mono text-sm mb-2">STEP 02</div>
-                    <h3 class="text-lg font-semibold mb-2 text-white">We Audit Your Setup</h3>
-                    <p class="text-slate-400 text-sm">Our engineering team reviews your webhook architecture, multi-location mapping, and variant rules.</p>
-                </div>
-                
-                <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-                    <div class="text-indigo-400 font-mono text-sm mb-2">STEP 03</div>
-                    <h3 class="text-lg font-semibold mb-2 text-white">Real-Time Sync Deployed</h3>
-                    <p class="text-slate-400 text-sm">We implement atomic database locks and custom routing so your inventory stays permanently accurate.</p>
-                </div>
+            <div class="step-card">
+                <div class="step-number">STEP 02</div>
+                <h3>We Audit Your Setup</h3>
+                <p>Our engineering team reviews your webhook architecture, multi-location mapping, and variant rules.</p>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">STEP 03</div>
+                <h3>Real-Time Sync Deployed</h3>
+                <p>We implement atomic database locks and custom routing so your inventory stays permanently accurate.</p>
             </div>
         </div>
-    </main>
+    </div>
 </body>
 </html>
