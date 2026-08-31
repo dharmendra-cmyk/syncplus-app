@@ -1,7 +1,7 @@
 const express = require('express');
-const { Pool } = require('pg');
+const Pool = require('pg').Pool;
 
-// Initialize Stripe securely using Railway's environment variables
+// Initialize Stripe securely using your live secret key
 const stripe = require('stripe')('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');
 
 const app = express();
@@ -27,20 +27,18 @@ app.post('/create-checkout-session', async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
-      line_items: [
-        {
-          price: process.env.STRIPE_PRO_PRICE_ID,
-          quantity: 1,
-        },
-      ],
-      success_url: `${req.protocol}://${req.get('host')}/?success=true`,
-      cancel_url: `${req.protocol}://${req.get('host')}/?canceled=true`,
+      line_items: [{
+        price: process.env.STRIPE_PRO_PRICE_ID,
+        quantity: 1,
+      }],
+      success_url: `${req.protocol}://${req.get('host')}/index.html?success=true`,
+      cancel_url: `${req.protocol}://${req.get('host')}/index.html?canceled=true`,
     });
 
-    res.json({ url: session.url });
+    res.json({ id: session.id });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Stripe Checkout Error Details:', error.raw || error);
+    res.status(500).json({ error: error.message, type: error.type });
   }
 });
 
