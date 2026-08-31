@@ -2,7 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 
 // Initialize Stripe securely using Railway's environment variables
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')('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');
 
 const app = express();
 const port = process.env.PORT || 8080;
