@@ -33,7 +33,6 @@ app.post('/create-checkout-session', async (req, res) => {
           quantity: 1,
         },
       ],
-      customer_creation: 'if_required',
       success_url: `${req.protocol}://${req.get('host')}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.protocol}://${req.get('host')}/cancel.html`,
     });
