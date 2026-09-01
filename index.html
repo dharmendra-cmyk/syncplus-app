@@ -1,61 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SyncPulse - Multi-Location Inventory Sync & Stocky Alternative</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SyncPulse - Multi-Location Inventory Sync & Stocky Alternative</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Include Stripe.js SDK -->
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans">
 
-  <!-- Hero Section for Stocky Migration -->
-  <header class="bg-white border-b border-gray-200">
-    <div class="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-purple-600">SyncPulse</h1>
-      <button onclick="startCheckout()" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-purple-700 transition">
-        Upgrade to Pro
-      </button>
-    </div>
-  </header>
+    <!-- Hero Section for Stocky Migration -->
+    <header class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-purple-600">SyncPulse</h1>
+            <button onclick="startCheckout()" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-purple-700 transition">
+                Upgrade to Pro
+            </button>
+        </div>
+    </header>
 
-  <main class="max-w-4xl mx-auto px-4 py-16 text-center">
-    <span class="bg-purple-100 text-purple-700 text-sm font-semibold px-3 py-1 rounded-full uppercase tracking-wide">
-      Stocky Shutdown Alternative
-    </span>
-    <h2 class="text-4xl font-extrabold tracking-tight sm:text-5xl mt-4 mb-6">
-      Keep Your Multi-Location Inventory in Sync Instantly.
-    </h2>
-    <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-      Seamless inventory synchronization and overselling protection designed specifically for Shopify merchants transitioning away from Stocky.
-    </p>
+    <main class="max-w-4xl mx-auto px-4 py-16 text-center">
+        <span class="bg-purple-100 text-purple-700 text-sm font-semibold px-3 py-1 rounded-full uppercase tracking-wide">
+            Stocky Shutdown Alternative
+        </span>
+        <h2 class="text-4xl font-extrabold mt-4 mb-6">Keep Your Multi-Location Inventory in Sync Instantly.</h2>
+        <p class="text-lg text-gray-600 mb-8">Seamless inventory synchronization and overselling protection designed specifically to replace Stocky.</p>
 
-    <!-- Call to Action Upgrade Box -->
-    <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200 max-w-lg mx-auto">
-      <h3 class="text-2xl font-bold mb-2">SyncPulse Pro Plan</h3>
-      <p class="text-gray-500 mb-6">Real-time sync, multi-location mapping, and automated safety stock protection.</p>
-      <button onclick="startCheckout()" class="w-full bg-purple-600 text-white py-3.5 rounded-xl font-semibold text-lg hover:bg-purple-700 shadow-md transition">
-        Start Your Free Migration Trial
-      </button>
-      <p class="text-xs text-gray-400 mt-4">Secure payment processing powered by Stripe.</p>
-    </div>
-  </main>
+        <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-lg mx-auto">
+            <h3 class="text-xl font-bold mb-2">SyncPulse Pro Plan</h3>
+            <p class="text-gray-600 mb-6">Real-time sync, multi-location mapping, and automated safety stock protection.</p>
+            <button onclick="startCheckout()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition">
+                Start Your Free Migration Trial
+            </button>
+            <p class="text-xs text-gray-400 mt-4">Secure payment processing powered by Stripe.</p>
+        </div>
+    </main>
 
-  <script>
-    async function startCheckout() {
-      try {
-        const response = await fetch('/create-checkout-session', { method: 'POST' });
-        const data = await response.json();
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
+    <!-- Frontend Checkout Script -->
+    <script>
+      const stripe = Stripe('pk_test_51U5tMuH2Y5HUdNhvIT0FuoWutSXyJLf9Uwkq0Tk5SeYmfJfkzfiVLprlmAEGHoMsPv42XAAPg0k3E83TzQ00Yn6LTd6u');
+
+      async function startCheckout() {
+        try {
+          const response = await fetch('/create-checkout-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const data = await response.json();
+          
+          if (data.id) {
+            const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
+            if (error) {
+              alert(error.message);
+            }
+          } else {
+            alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
+          }
+        } catch (err) {
+          alert('An error occurred. Please try again.');
+          console.error(err);
         }
-      } catch (err) {
-        console.error('Error connecting to checkout:', err);
-        alert('Network error while starting checkout.');
       }
-    }
-  </script>
-
+    </script>
 </body>
 </html>
