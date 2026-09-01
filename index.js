@@ -8,6 +8,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Trust Railway's reverse proxy so req.protocol correctly identifies https
+app.set('trust proxy', 1);
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
@@ -24,9 +27,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Create checkout session endpoint with 7-day free trial and payment collection
+// Create checkout session endpoint with forced HTTPS URLs
 app.post('/create-checkout-session', async (req, res) => {
   try {
+    const host = req.get('host');
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -39,9 +43,8 @@ app.post('/create-checkout-session', async (req, res) => {
       subscription_data: {
         trial_period_days: 7,
       },
-      payment_method_collection: 'always',
-      success_url: `${req.protocol}://${req.get('host')}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.protocol}://${req.get('host')}/cancel.html`,
+      success_url: `https://${host}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://${host}/cancel.html`,
     });
 
     res.json({ id: session.id });
