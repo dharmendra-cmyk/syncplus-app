@@ -3,37 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SyncPulse</title>
+  <title>SyncPulse - SaaS Landing Page</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-white flex flex-col items-center justify-center min-h-screen">
 
   <div class="text-center p-8 max-w-xl">
     <h1 class="text-4xl font-extrabold mb-4">SyncPulse</h1>
-    <p class="text-slate-400 mb-8">Start your 7-day free trial today!</p>
+    <p class="text-slate-400 mb-8">Supercharge your workflow with real-time analytics. Start your 7-day free trial today!</p>
     
+    <!-- Checkout Trigger Button -->
     <button onclick="startCheckout()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition">
       Start 7-Day Free Trial
     </button>
   </div>
 
+  <!-- Frontend Checkout Handler Script -->
   <script>
     async function startCheckout() {
       try {
         const response = await fetch('/create-checkout-session', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
 
         const data = await response.json();
 
         if (response.ok && data.url) {
+          // Directly redirect browser window to Stripe Checkout
           window.location.href = data.url;
         } else {
-          alert('Server Error: ' + (data.error || 'Server responded with status ' + response.status));
+          alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
         }
       } catch (error) {
-        alert('Network/Fetch Error: ' + error.message);
+        alert('Network error: ' + error.message);
       }
     }
   </script>
