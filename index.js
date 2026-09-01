@@ -2,8 +2,7 @@ const express = require('express');
 const path = require('path');
 const Pool = require('pg').Pool;
 
-const stripe = require('stripe')('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');
-
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -11,8 +10,8 @@ const port = process.env.PORT || 8080;
 app.set('trust proxy', 1);
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 app.use(express.json());
@@ -28,12 +27,12 @@ app.post('/create-checkout-session', async (req, res) => {
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [{
-                price: process.env.STRIPE_PRO_PRICE_ID || 'price_1UAedqH2Y5HUdNhvcOWSg92B',
+                price: process.env.STRIPE_PRO_PRICE_ID,
                 quantity: 1,
             }],
             mode: 'subscription',
-            success_url: `${req.protocol}://${req.get('host')}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${req.protocol}://${req.get('host')}/cancel.html`,
+            success_url: `${req.protocol}://${req.get('host')}/?success=true`,
+            cancel_url: `${req.protocol}://${req.get('host')}/?canceled=true`,
         });
         res.json({ id: session.id });
     } catch (error) {
