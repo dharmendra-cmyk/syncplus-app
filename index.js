@@ -2,8 +2,8 @@ const express = require('express');
 const path = require('path');
 const Pool = require('pg').Pool;
 
-const stripeKey = (process.env.STRIPE_SECRET_KEY || '').replace(/\s+/g, '');
-const stripe = require('stripe')(stripeKey);
+const stripe = require('stripe')('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');
+
 
 const app = express();
 const port = process.env.PORT || 8080;
