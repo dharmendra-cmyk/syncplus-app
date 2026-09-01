@@ -26,16 +26,13 @@ app.post('/create-checkout-session', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
+      payment_method_types: ['card'],
       line_items: [
         {
           price: process.env.STRIPE_PRO_PRICE_ID,
           quantity: 1,
         },
       ],
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      billing_address_collection: 'auto',
       success_url: `${req.protocol}://${req.get('host')}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.protocol}://${req.get('host')}/cancel.html`,
     });
