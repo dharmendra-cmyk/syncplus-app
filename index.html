@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SyncPulse - Multi-Location Inventory Sync & Stocky Alternative</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,23 +22,22 @@
 
     <main class="max-w-4xl mx-auto px-4 py-16 text-center">
         <span class="bg-purple-100 text-purple-700 text-sm font-semibold px-3 py-1 rounded-full uppercase tracking-wide">
-            Stocky Shutdown Alternative
+            Stocky Migration & Multi-Location Sync
         </span>
-        <h2 class="text-4xl font-extrabold mt-4 mb-6">Keep Your Multi-Location Inventory in Sync Instantly.</h2>
-        <p class="text-lg text-gray-600 mb-8">Seamless inventory synchronization and overselling protection designed specifically to replace Stocky.</p>
-
-        <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-lg mx-auto">
-            <h3 class="text-xl font-bold mb-2">SyncPulse Pro Plan</h3>
-            <p class="text-gray-600 mb-6">Real-time sync, multi-location mapping, and automated safety stock protection.</p>
-            <button onclick="startCheckout()" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition">
-                Start Your Free Migration Trial
-            </button>
-            <p class="text-xs text-gray-400 mt-4">Secure payment processing powered by Stripe.</p>
-        </div>
+        <h2 class="text-4xl font-extrabold mt-4 mb-6">
+            Never oversell inventory again.
+        </h2>
+        <p class="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            SyncPulse keeps your inventory perfectly aligned across all your Shopify locations in real time. Built specifically for high-volume merchants.
+        </p>
+        <button onclick="startCheckout()" class="bg-purple-600 text-white text-lg font-semibold px-8 py-4 rounded-xl shadow-lg hover:bg-purple-700 transition">
+            Start 7-Day Free Trial
+        </button>
+        <p class="text-xs text-gray-400 mt-4">Secure payment processing powered by Stripe.</p>
     </main>
 
     <script>
-        const stripe = Stripe('pk_test_51U5tMuH2Y5HUdNhvIT0FuowUtSXYJLf9UwkQqtk5SeymffJfkzfivLVprImAEGhoxMsPv42XApg0k3E83TzQ00Yn6LTd6u');
+        const stripe = Stripe('pk_test_51U5tMuH2Y5HUdNhviT0FuowUtSXYJLf9UwkQqtk5SeymffJfkzfiLVPrimAEGhoxMsPv42XApgk3E83TZQ00Yn6LTd6u');
 
         async function startCheckout() {
             try {
