@@ -3,45 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncPulse - SaaS Landing Page</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SyncPlus Pro - SaaS Platform</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; max-width: 400px; width: 100%; }
+        h1 { margin-bottom: 10px; font-size: 24px; }
+        p { color: #94a3b8; margin-bottom: 30px; }
+        button { background: #6366f1; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: 600; width: 100%; transition: background 0.2s; }
+        button:hover { background: #4f46e5; }
+        .success-banner { background: #065f46; color: #34d399; padding: 12px; border-radius: 6px; margin-bottom: 20px; display: none; font-weight: 500; }
+        .pro-dashboard { display: none; }
+    </style>
 </head>
-<body class="bg-slate-950 text-white flex flex-col items-center justify-center min-h-screen">
+<body>
 
-    <div class="text-center p-8 max-w-xl">
-        <h1 class="text-4xl font-extrabold mb-4">SyncPulse</h1>
-        <p class="text-slate-400 mb-8">Supercharge your workflow with real-time analytics. Start your 7-day free trial today!</p>
+    <div class="card">
+        <div id="successBanner" class="success-banner">Payment Successful! Welcome to Pro.</div>
+        
+        <!-- Paywall View -->
+        <div id="paywallView">
+            <h1>SyncPlus Pro</h1>
+            <p>Automate clinical protocol analysis and streamline trial audits for $79/month.</p>
+            <button onclick="startCheckout()">Subscribe Now ($79/mo)</button>
+        </div>
 
-        <!-- Checkout Trigger Button -->
-        <button onclick="startCheckout()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition duration-200">
-            Start 7-Day Free Trial
-        </button>
+        <!-- Pro Dashboard View (Unlocked after success) -->
+        <div id="proDashboard" class="pro-dashboard">
+            <h1>SyncPlus Pro Dashboard</h1>
+            <p>Status: <span style="color: #34d399; font-weight: bold;">Active Member</span></p>
+            <button style="background: #0d9488;" onclick="alert('Accessing Clinical Auditor Pro modules...')">Launch AI Auditor Suite</button>
+        </div>
     </div>
 
-    <!-- Frontend Checkout Handler Script -->
     <script>
+        // Check if redirected back with success=true
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('success') === 'true') {
+            document.getElementById('successBanner').style.display = 'block';
+            document.getElementById('paywallView').style.display = 'none';
+            document.getElementById('proDashboard').style.display = 'block';
+        }
+
         async function startCheckout() {
             try {
-                const response = await fetch('/create-checkout-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
-
+                const response = await fetch('/create-checkout-session', { method: 'POST' });
                 const data = await response.json();
-
-                if (response.ok && data.url) {
-                    // Directly redirect browser window to Stripe Checkout
+                if (data.url) {
                     window.location.href = data.url;
                 } else {
-                    alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
+                    alert('Error initiating checkout session.');
                 }
-            } catch (error) {
-                alert('Network error: ' + error.message);
+            } catch (err) {
+                console.error('Checkout error:', err);
+                alert('Network error connecting to billing server.');
             }
         }
     </script>
-
 </body>
 </html>
