@@ -11,7 +11,7 @@ app.set('trust proxy', 1);
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false }
 });
 
 // Automatically create subscriptions table on startup if it doesn't exist
@@ -23,9 +23,9 @@ pool.query(`
         status VARCHAR(50),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
-`).catchall = (err) => console.error('Table creation error:', err);
+`).catch(err => console.error('Table creation error:', err));
 
-// Stripe Webhook Endpoint
+// Stripe Webhook Endpoint (Must be defined BEFORE express.json())
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
