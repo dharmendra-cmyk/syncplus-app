@@ -24,7 +24,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Create checkout session endpoint with 7-day free trial
+// Create checkout session endpoint with 7-day free trial and payment collection
 app.post('/create-checkout-session', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
@@ -39,6 +39,7 @@ app.post('/create-checkout-session', async (req, res) => {
       subscription_data: {
         trial_period_days: 7,
       },
+      payment_method_collection: 'always',
       success_url: `${req.protocol}://${req.get('host')}/success.html?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.protocol}://${req.get('host')}/cancel.html`,
     });
