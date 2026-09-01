@@ -1,68 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncPulse - Multi-Location Inventory Sync & Stocky Alternative</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Include Stripe.js SDK -->
-    <script src="https://js.stripe.com/v3/"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SyncPulse - SaaS Landing Page</title>
+  <!-- Tailwind CSS or other styles if you use them -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans">
+<body class="bg-slate-950 text-white flex flex-col items-center justify-center min-h-screen">
 
-    <!-- Hero Section for Stocky Migration -->
-    <header class="bg-white border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-purple-600">SyncPulse</h1>
-            <button onclick="startCheckout()" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-purple-700 transition">
-                Upgrade to Pro
-            </button>
-        </div>
-    </header>
+  <div class="text-center p-8 max-w-xl">
+    <h1 class="text-4xl font-extrabold mb-4">SyncPulse</h1>
+    <p class="text-slate-400 mb-8">Supercharge your workflow with real-time analytics. Start your 7-day free trial today!</p>
+    
+    <!-- Your Checkout Button -->
+    <button onclick="startCheckout()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg transition">
+      Start 7-Day Free Trial
+    </button>
+  </div>
 
-    <main class="max-w-4xl mx-auto px-4 py-16 text-center">
-        <span class="bg-purple-100 text-purple-700 text-sm font-semibold px-3 py-1 rounded-full uppercase tracking-wide">
-            Stocky Migration & Multi-Location Sync
-        </span>
-        <h2 class="text-4xl font-extrabold mt-4 mb-6">
-            Never oversell inventory again.
-        </h2>
-        <p class="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            SyncPulse keeps your inventory perfectly aligned across all your Shopify locations in real time. Built specifically for high-volume merchants.
-        </p>
-        <button onclick="startCheckout()" class="bg-purple-600 text-white text-lg font-semibold px-8 py-4 rounded-xl shadow-lg hover:bg-purple-700 transition">
-            Start 7-Day Free Trial
-        </button>
-        <p class="text-xs text-gray-400 mt-4">Secure payment processing powered by Stripe.</p>
-    </main>
+  <!-- Frontend Checkout Handler Script -->
+  <script>
+    async function startCheckout() {
+      try {
+        const response = await fetch('/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-    <script>
-        const stripe = Stripe('pk_test_51U5tMuH2Y5HUdNhviT0FuowUtSXYJLf9UwkQqtk5SeymffJfkzfiLVPrimAEGhoxMsPv42XApgk3E83TZQ00Yn6LTd6u');
+        const data = await response.json();
 
-        async function startCheckout() {
-            try {
-                const response = await fetch('/create-checkout-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                });
-
-                const data = await response.json();
-
-                if (data.id) {
-                    const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
-                    if (error) {
-                        alert(error.message);
-                    }
-                } else {
-                    alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
-                }
-            } catch (err) {
-                console.error('Error:', err);
-                alert('Network error occurred while starting checkout.');
-            }
+        if (data.url) {
+          // Directly redirect the browser window to Stripe's hosted checkout page
+          window.location.href = data.url;
+        } else {
+          alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
         }
-    </script>
+      } catch (error) {
+        alert('Network error: ' + error.message);
+      }
+    }
+  </script>
+
 </body>
 </html>
