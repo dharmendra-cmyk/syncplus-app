@@ -73,7 +73,6 @@
         <button class="btn" onclick="alert('Accessing SyncPlus Inventory Pro modules...')">Launch Inventory Suite</button>
     </div>
 
-    <script src="https://js.stripe.com/v3/"></script>
     <script>
         // Check if redirected back successfully from Stripe checkout
         const urlParams = new URLSearchParams(window.location.search);
@@ -88,19 +87,13 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                 });
-                const session = await response.json();
+                const data = await response.json();
                 
-                if (session.error) {
-                    alert('Error: ' + session.error);
-                    return;
-                }
-
-                const stripe = Stripe('pk_live_51U5tMuH2Y5HUDnhZvJ81Z... (or your public key if needed)');
-                // Alternatively let Stripe handle redirect via session ID if configured, 
-                // or open checkout directly:
-                const result = await stripe.redirectToCheckout({ sessionId: session.id });
-                if (result.error) {
-                    alert(result.error.message);
+                if (data.url) {
+                    // Redirect directly to the Stripe Checkout URL provided by your backend
+                    window.location.href = data.url;
+                } else {
+                    alert('Error: ' + (data.error || 'Could not start checkout session.'));
                 }
             } catch (err) {
                 console.error('Error:', err);
