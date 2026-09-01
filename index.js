@@ -25,8 +25,8 @@ app.get('/', (req, res) => {
 app.post('/create-checkout-session', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       mode: 'subscription',
+      payment_method_types: ['card'],
       line_items: [
         {
           price: process.env.STRIPE_PRO_PRICE_ID,
@@ -39,6 +39,7 @@ app.post('/create-checkout-session', async (req, res) => {
 
     res.json({ id: session.id });
   } catch (error) {
+    console.error("Stripe Checkout Error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
