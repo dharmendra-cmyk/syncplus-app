@@ -37,34 +37,33 @@
         </div>
     </main>
 
-    <!-- Frontend Checkout Script -->
     <script>
-      const stripe = Stripe('pk_test_51U5tMuH2Y5HUdNhvIT0FuoWutSXyJLf9Uwkq0Tk5SeYmfJfkzfiVLprlmAEGHoMsPv42XAAPg0k3E83TzQ00Yn6LTd6u');
+        const stripe = Stripe('pk_test_51U5tMuH2Y5HUdNhvIT0FuowUtSXYJLf9UwkQqtk5SeymffJfkzfivLVprImAEGhoxMsPv42XApg0k3E83TzQ00Yn6LTd6u');
 
-      async function startCheckout() {
-        try {
-          const response = await fetch('/create-checkout-session', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
+        async function startCheckout() {
+            try {
+                const response = await fetch('/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                const data = await response.json();
+
+                if (data.id) {
+                    const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
+                    if (error) {
+                        alert(error.message);
+                    }
+                } else {
+                    alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Network error occurred while starting checkout.');
             }
-          });
-          
-          const data = await response.json();
-          
-          if (data.id) {
-            const { error } = await stripe.redirectToCheckout({ sessionId: data.id });
-            if (error) {
-              alert(error.message);
-            }
-          } else {
-            alert('Checkout initiation failed: ' + (data.error || 'Unknown error'));
-          }
-        } catch (err) {
-          alert('An error occurred. Please try again.');
-          console.error(err);
         }
-      }
     </script>
 </body>
 </html>
