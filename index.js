@@ -14,7 +14,18 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Stripe Webhook Endpoint (Must be defined BEFORE express.json())
+// Automatically create subscriptions table on startup if it doesn't exist
+pool.query(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        id SERIAL PRIMARY KEY,
+        subscription_id VARCHAR(255) UNIQUE,
+        customer_id VARCHAR(255),
+        status VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+`).catchall = (err) => console.error('Table creation error:', err);
+
+// Stripe Webhook Endpoint
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
@@ -27,8 +38,15 @@ app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res)
 
     if (event.type === 'invoice.payment_succeeded') {
         const invoice = event.data.object;
-        console.log(`Payment succeeded for subscription: ${invoice.subscription}`);
-        // TODO: Database persistence logic will go here
+        try {
+            await pool.query(
+                'INSERT INTO subscriptions (subscription_id, customer_id, status) VALUES ($1, $2, $3) ON CONFLICT (subscription_id) DO UPDATE SET status = $3',
+                [invoice.subscription, invoice.customer, 'active']
+            );
+            console.log(`Successfully saved subscription: ${invoice.subscription}`);
+        } catch (dbErr) {
+            console.error('Database save error:', dbErr);
+        }
     }
 
     res.json({ received: true });
