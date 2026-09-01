@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const Pool = require('pg').Pool;
 
 // Initialize Stripe securely using environment variables
@@ -14,11 +15,13 @@ const pool = new Pool({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname));
-app.use(express.static(__dirname + '/HTML'));
 
+// Serve static files from the root directory
+app.use(express.static(path.join(__dirname)));
+
+// Explicit route for the homepage
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Create checkout session endpoint
