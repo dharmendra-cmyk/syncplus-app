@@ -10,8 +10,13 @@ const port = process.env.PORT || 8080;
 app.set('trust proxy', 1);
 
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL,
+  host: process.env.PGHOST,
+  port: process.env.PGPORT,
+  database: process.env.PGDATABASE,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  ssl: { rejectUnauthorized: false }
 });
 
 // Automatically create all required tables on startup if they don't exist
