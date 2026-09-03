@@ -18,18 +18,30 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verify email SMTP connection on server startup
+// Verify email connection on startup
 transporter.verify((error) => {
   if (error) {
     console.warn('⚠️ SMTP Configuration Warning:', error.message);
   } else {
-    console.log('📧 SMTP Transporter initialized successfully');
+    console.log('📧 SMTP Transporter initialized successfully.');
   }
 });
 
 // ==========================================
-// 2. AUTOMATED WELCOME EMAIL TRIGGER
+// 2. HELPER FUNCTIONS
 // ==========================================
+async function provisionUserAccount(session) {
+  const customerEmail = session.customer_details?.email;
+  const customerName = session.customer_details?.name;
+  
+  console.log(`📦 Provisioning SyncPlus Pro account for ${customerEmail}...`);
+  
+  // Database insertion logic goes here
+  // e.g., await db.users.create({ data: { email: customerEmail, stripeId: session.customer } });
+  
+  return { email: customerEmail, name: customerName };
+}
+
 async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
   if (!customerEmail) {
     console.warn('⚠️ No customer email provided for welcome message');
@@ -43,10 +55,10 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
         <h2 style="color: #635bff;">Welcome to SyncPlus Pro, ${customerName || 'Merchant'}!</h2>
-        <p>Thank you for subscribing to the <strong>SyncPlus Pro Plan ($79/mo)</strong>. Your payment has been processed successfully.</p>
+        <p>Thank you for subscribing to the <strong>SyncPlus Pro Plan ($79/mo)</strong>. Your account has been provisioned successfully.</p>
         
         <div style="background-color: #f7f9fc; border-left: 4px solid #635bff; padding: 15px; margin: 20px 0;">
-          <p style="margin: 0;"><strong>Order Confirmation ID:</strong> ${sessionId}</p>
+          <p style="margin: 0;"><strong>Session ID:</strong> ${sessionId}</p>
           <p style="margin: 5px 0 0 0;"><strong>Status:</strong> Active Pro Membership</p>
         </div>
 
@@ -67,7 +79,7 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`✉️ Welcome email dispatched to ${customerEmail} (Message ID: ${info.messageId})`);
+    console.log(`✉️ Welcome email dispatched to ${customerEmail} (ID: ${info.messageId})`);
   } catch (err) {
     console.error(`❌ Error dispatching welcome email to ${customerEmail}:`, err.message);
   }
@@ -75,8 +87,8 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
 
 // ==========================================
 // 3. STRIPE WEBHOOK ROUTE (RAW BODY ONLY)
-// Declared BEFORE express.json() to maintain unparsed
-// Buffer for cryptographic signature validation.
+// Must be declared BEFORE express.json() so Express passes
+// the raw unparsed Buffer stream for signature verification.
 // ==========================================
 app.post(
   '/webhook',
@@ -93,7 +105,7 @@ app.post(
     let event;
 
     try {
-      // Construct and cryptographically verify event using raw buffer
+      // Constructs and cryptographically verifies the event signature
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
       console.error(`❌ Webhook Signature Verification Error: ${err.message}`);
@@ -107,21 +119,17 @@ app.post(
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object;
-          const customerEmail = session.customer_details?.email;
-          const customerName = session.customer_details?.name;
-
           console.log(`✅ Successful Checkout Session: ${session.id}`);
-          console.log(`Customer Email: ${customerEmail}`);
 
-          // Trigger automated onboarding welcome email
-          await sendWelcomeEmail(customerEmail, customerName, session.id);
+          // Provision access & dispatch welcome email
+          const user = await provisionUserAccount(session);
+          await sendWelcomeEmail(user.email, user.name, session.id);
           break;
         }
 
         case 'invoice.payment_succeeded': {
           const invoice = event.data.object;
           console.log(`✅ Invoice Payment Succeeded: ${invoice.id}`);
-          console.log(`Customer ID: ${invoice.customer}`);
           break;
         }
 
@@ -135,10 +143,10 @@ app.post(
           console.log(`ℹ️ Unhandled event type: ${event.type}`);
       }
     } catch (handlerErr) {
-      console.error(`❌ Handler Execution Error for event [${event.type}]:`, handlerErr);
+      console.error(`❌ Error executing handler for event [${event.type}]:`, handlerErr);
     }
 
-    // Always acknowledge receipt back to Stripe with 200 OK
+    // Always respond with 200 OK to acknowledge receipt back to Stripe
     res.status(200).json({ received: true });
   }
 );
