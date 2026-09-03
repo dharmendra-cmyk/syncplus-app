@@ -6,8 +6,6 @@ const nodemailer = require('nodemailer');
 const app = express();
 const port = process.env.PORT || 8080;
 
-
-
 // ==========================================
 // 1. POSTGRESQL DATABASE CONNECTION & INIT
 // ==========================================
@@ -34,25 +32,10 @@ function getPool() {
   }
   return pool;
 }
-}
 
-async function initializeDatabase() {
-  const activePool = getPool();
-  if (!activePool) return;
-
-  const createCustomersTable = `
-    CREATE TABLE IF NOT EXISTS customers (
-      id SERIAL PRIMARY KEY,
-      stripe_customer_id VARCHAR(255) UNIQUE NOT NULL,
-      email VARCHAR(255) NOT NULL,
-      name VARCHAR(255),
-      plan VARCHAR(100) DEFAULT 'SyncPlus Pro ($79/mo)',
-      status VARCHAR(50) DEFAULT 'active',
-      session_id VARCHAR(255),
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
+// Ensure database connection starts up
+getPool();
+      
 
   const createInventoryTable = `
     CREATE TABLE IF NOT EXISTS inventory (
