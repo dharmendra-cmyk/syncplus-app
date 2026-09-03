@@ -7,16 +7,25 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // ==========================================
-// 1. POSTGRESQL DATABASE CONNECTION
+// 1. POSTGRESQL DATABASE CONNECTION (WITH SAFE FALLBACK)
 // ==========================================
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost')
-    ? { rejectUnauthorized: false }
-    : false
-});
+let pool = null;
+
+if (process.env.DATABASE_URL) {
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL.includes('localhost')
+      ? false
+      : { rejectUnauthorized: false }
+  });
+  console.log('🔗 PostgreSQL pool configured with provided DATABASE_URL.');
+} else {
+  console.warn('⚠️ DATABASE_URL not found in environment variables. Database operations will be bypassed.');
+}
 
 async function initializeDatabase() {
+  if (!pool) return;
+
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS customers (
       id SERIAL PRIMARY KEY,
@@ -32,7 +41,7 @@ async function initializeDatabase() {
   `;
   try {
     await pool.query(createTableQuery);
-    console.log('🗄️ PostgreSQL table [customers] initialized.');
+    console.log('🗄️ PostgreSQL table [customers] initialized successfully.');
   } catch (err) {
     console.error('❌ DB Init Error:', err.message);
   }
@@ -41,6 +50,11 @@ async function initializeDatabase() {
 initializeDatabase();
 
 async function saveCustomerToDB(customerData) {
+  if (!pool) {
+    console.log(`ℹ️ [DB Bypass] Skipping database write for ${customerData.email} (DATABASE_URL not set).`);
+    return;
+  }
+
   const query = `
     INSERT INTO customers (stripe_customer_id, email, name, plan, status, session_id, updated_at)
     VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
@@ -116,7 +130,7 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✉️ Welcome email sent to ${customerEmail}`);
+    console.log(`✉️ Welcome email dispatched to ${customerEmail}`);
   } catch (err) {
     console.error(`❌ Email Error:`, err.message);
   }
@@ -170,10 +184,17 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'OK',
+    dbConnected: Boolean(pool),
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/api/customers', async (req, res) => {
+  if (!pool) {
+    return res.status(503).json({ error: 'Database service not connected' });
+  }
   try {
     const result = await pool.query('SELECT * FROM customers ORDER BY created_at DESC');
     res.status(200).json({ count: result.rowCount, customers: result.rows });
@@ -187,4 +208,5 @@ app.get('/api/customers', async (req, res) => {
 // ==========================================
 app.listen(port, () => {
   console.log(`🚀 SyncPlus Server running on port ${port}`);
+  console.log(`📡 Stripe Webhook Endpoint active at /webhook`);
 });
