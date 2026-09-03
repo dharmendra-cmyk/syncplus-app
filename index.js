@@ -108,7 +108,7 @@ async function updateCustomerSubscription(subscription) {
 
   try {
     await activePool.query(query, [subscription.status, subscription.customer]);
-    console.log(`🔄 Updated status to [${subscription.status}] for: ${subscription.customer}`);
+    console.log(`🔄 Updated status to [${subscription.status}] for:${subscription.customer}`);
   } catch (err) {
     console.error('❌ DB Update Error:', err.message);
   }
@@ -214,7 +214,7 @@ app.post(
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    console.log(`⚡ Verified Event Received: [${event.type}] - ID: ${event.id}`);
+    console.log(`⚡ Verified Event Received: [${event.type}] - ID:${event.id}`);
 
     try {
       switch (event.type) {
@@ -367,12 +367,10 @@ app.post('/api/inventory/sync', async (req, res) => {
     await activePool.query(query, [sku, productName, stockQty, targetChannel]);
     console.log(`📦 Inventory synced for SKU: ${sku} (${stockQty} units)`);
 
-    // Check low stock threshold alert (under 10 units)
     if (stockQty < 10) {
       await sendLowStockAlert(sku, productName, stockQty, targetChannel);
     }
     
-    // Redirect back to Admin if submitted via Form
     if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
       return res.redirect('/admin');
     }
@@ -380,6 +378,29 @@ app.post('/api/inventory/sync', async (req, res) => {
     res.status(200).json({ success: true, sku, quantity: stockQty, channel: targetChannel });
   } catch (err) {
     console.error('❌ Inventory Sync Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API & Form Handler to Delete an Inventory SKU
+app.post('/api/inventory/delete', async (req, res) => {
+  const activePool = getPool();
+  if (!activePool) return res.status(500).json({ error: 'Database not available' });
+
+  const { sku } = req.body;
+  if (!sku) return res.status(400).json({ error: 'Missing SKU parameter' });
+
+  try {
+    await activePool.query('DELETE FROM inventory WHERE sku = $1', [sku]);
+    console.log(`🗑️ Deleted SKU: ${sku}`);
+
+    if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
+      return res.redirect('/admin');
+    }
+
+    res.status(200).json({ success: true, deletedSku: sku });
+  } catch (err) {
+    console.error('❌ Delete Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -422,11 +443,17 @@ app.get('/admin', async (req, res) => {
         <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.product_name}</td>
         <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">
           <span style="background: ${isLowStock ? '#fef3c7' : '#f0fdf4'}; color: ${isLowStock ? '#b45309' : '#15803d'}; padding: 4px 10px; border-radius: 4px; font-weight: bold;">
-            ${i.quantity} ${isLowStock ? '⚠️ Low Stock' : ''}
+            ${i.quantity}${isLowStock ? '⚠️ Low Stock' : ''}
           </span>
         </td>
         <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.channel}</td>
         <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(i.last_synced).toLocaleString()}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">
+          <form action="/api/inventory/delete" method="POST" style="margin: 0;">
+            <input type="hidden" name="sku" value="${i.sku}" />
+            <button type="submit" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;">Delete</button>
+          </form>
+        </td>
       </tr>
     `;
   }).join('');
@@ -443,110 +470,4 @@ app.get('/admin', async (req, res) => {
         .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         h1, h2 { color: #635bff; }
         .stats { display: flex; gap: 20px; margin: 20px 0; }
-        .card { background: #f7f9fc; padding: 15px 25px; border-radius: 6px; border: 1px solid #e1e4e8; flex: 1; }
-        .card h3 { margin: 0; font-size: 14px; color: #586069; }
-        .card p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #24292e; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 40px; text-align: left; }
-        th { padding: 12px; background-color: #f6f8fa; border-bottom: 2px solid #e1e4e8; color: #586069; font-size: 13px; text-transform: uppercase; }
-        .sync-form { background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 30px; display: flex; gap: 10px; align-items: flex-end; }
-        .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-        .form-group label { font-size: 12px; font-weight: bold; color: #475569; }
-        .form-group input, .form-group select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
-        .btn-submit { background: #635bff; color: white; border: none; padding: 9px 18px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .btn-submit:hover { background: #4f46e5; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <h1>SyncPlus Admin Dashboard</h1>
-        <p>Live Customer Subscriptions & Multi-Channel Inventory Control</p>
-        
-        <div class="stats">
-          <div class="card">
-            <h3>Active Subscribers</h3>
-            <p>${activeCount}</p>
-          </div>
-          <div class="card">
-            <h3>Monthly Recurring Revenue (MRR)</h3>
-            <p>$${activeCount * 79}</p>
-          </div>
-          <div class="card">
-            <h3>Synced SKUs</h3>
-            <p>${inventory.length}</p>
-          </div>
-        </div>
-
-        <h2>Sync Inventory Stock</h2>
-        <form class="sync-form" action="/api/inventory/sync" method="POST">
-          <div class="form-group">
-            <label>SKU</label>
-            <input type="text" name="sku" placeholder="PROD-101" required />
-          </div>
-          <div class="form-group">
-            <label>Product Name</label>
-            <input type="text" name="productName" placeholder="Pro Wireless Earbuds" required />
-          </div>
-          <div class="form-group">
-            <label>Quantity</label>
-            <input type="number" name="quantity" placeholder="150" required />
-          </div>
-          <div class="form-group">
-            <label>Sales Channel</label>
-            <select name="channel">
-              <option value="Shopify">Shopify</option>
-              <option value="Amazon">Amazon</option>
-              <option value="WooCommerce">WooCommerce</option>
-            </select>
-          </div>
-          <button type="submit" class="btn-submit">Sync Stock</button>
-        </form>
-
-        <h2>Multi-Channel Inventory Status</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Product Name</th>
-              <th>Stock Level</th>
-              <th>Channel</th>
-              <th>Last Synced</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${inventoryRows || '<tr><td colspan="5" style="padding: 20px; text-align: center;">No inventory records synced yet.</td></tr>'}
-          </tbody>
-        </table>
-
-        <h2>Customer Subscriptions</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Email</th>
-              <th>Name</th>
-              <th>Status</th>
-              <th>Plan</th>
-              <th>Stripe ID</th>
-              <th>Subscribed At</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${customerRows || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No customer subscriptions found.</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    </body>
-    </html>
-  `;
-
-  res.status(200).send(html);
-});
-
-// ==========================================
-// 6. SERVER INITIALIZATION
-// ==========================================
-app.listen(port, () => {
-  console.log(`🚀 SyncPlus Server running on port ${port}`);
-  console.log(`📡 Stripe Webhook Endpoint active at /webhook`);
-  console.log(`📊 Admin Dashboard available at /admin`);
-});
+        .card { background: #f7f9fc; padding: 15px 25px; border-radius:
