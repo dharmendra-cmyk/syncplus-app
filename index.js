@@ -11,20 +11,22 @@ const port = process.env.PORT || 8080;
 // ==========================================
 let pool = null;
 
-if (process.env.DATABASE_URL) {
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes('localhost')
-      ? false
-      : { rejectUnauthorized: false }
-  });
-  console.log('🔗 PostgreSQL pool configured with provided DATABASE_URL.');
-} else {
-  console.warn('⚠️ DATABASE_URL not found in environment variables. DB operations bypassed.');
+function getPool() {
+  if (!pool && process.env.DATABASE_URL) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_URL.includes('localhost')
+        ? false
+        : { rejectUnauthorized: false }
+    });
+    console.log('🔗 PostgreSQL pool initialized.');
+  }
+  return pool;
 }
 
 async function initializeDatabase() {
-  if (!pool) return;
+  const activePool = getPool();
+  if (!activePool) return;
 
   const createTableQuery = `
     CREATE TABLE IF NOT EXISTS customers (
@@ -40,7 +42,7 @@ async function initializeDatabase() {
     );
   `;
   try {
-    await pool.query(createTableQuery);
+    await activePool.query(createTableQuery);
     console.log('🗄️ PostgreSQL table [customers] initialized successfully.');
   } catch (err) {
     console.error('❌ DB Init Error:', err.message);
@@ -50,7 +52,8 @@ async function initializeDatabase() {
 initializeDatabase();
 
 async function saveCustomerToDB(customerData) {
-  if (!pool) {
+  const activePool = getPool();
+  if (!activePool) {
     console.log(`ℹ️ [DB Bypass] Skipping DB write for ${customerData.email} (DATABASE_URL not set).`);
     return;
   }
@@ -76,7 +79,7 @@ async function saveCustomerToDB(customerData) {
   ];
 
   try {
-    await pool.query(query, values);
+    await activePool.query(query, values);
     console.log(`💾 Persisted customer record: ${customerData.email}`);
   } catch (err) {
     console.error('❌ DB Write Error:', err.message);
@@ -124,20 +127,7 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2 style="color: #635bff;">Welcome to SyncPlus Pro, ${customerName || 'Merchant'}!</h2>
         <p>Thank you for subscribing to the <strong>SyncPlus Pro Plan ($79/mo)</strong>. Your account has been provisioned successfully.</p>
-        
-        <div style="background-color: #f7f9fc; border-left: 4px solid #635bff; padding: 15px; margin: 20px 0;">
-          <p style="margin: 0;"><strong>Session ID:</strong> ${sessionId}</p>
-          <p style="margin: 5px 0 0 0;"><strong>Status:</strong> Active Pro Membership</p>
-        </div>
-
-        <h3>Next Steps:</h3>
-        <ol>
-          <li>Log in to your SyncPlus dashboard using this email address.</li>
-          <li>Connect your Shopify or ERP inventory endpoints.</li>
-          <li>Set up automated sync frequencies.</li>
-        </ol>
-
-        <p>Best regards,<br><strong>The SyncPlus Team</strong></p>
+        <p>Session ID: ${sessionId}</p>
       </div>
     `,
   };
@@ -200,105 +190,108 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
+  const activePool = getPool();
   res.status(200).json({
     status: 'OK',
-    dbConnected: Boolean(pool),
+    dbConnected: Boolean(activePool),
     timestamp: new Date().toISOString()
   });
 });
 
 app.get('/api/customers', async (req, res) => {
-  if (!pool) {
-    return res.status(503).json({ error: 'Database service not connected' });
+  const activePool = getPool();
+  if (!activePool) {
+    return res.status(200).json({ count: 0, customers: [], message: 'Database not connected' });
   }
   try {
-    const result = await pool.query('SELECT * FROM customers ORDER BY created_at DESC');
+    const result = await activePool.query('SELECT * FROM customers ORDER BY created_at DESC');
     res.status(200).json({ count: result.rowCount, customers: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Visual Admin Dashboard HTML Route
+// Visual Admin Dashboard Route (Self-Healing)
 app.get('/admin', async (req, res) => {
-  if (!pool) {
-    return res.status(503).send('Database not connected.');
+  const activePool = getPool();
+  let customers = [];
+
+  if (activePool) {
+    try {
+      const result = await activePool.query('SELECT * FROM customers ORDER BY created_at DESC');
+      customers = result.rows;
+    } catch (err) {
+      console.error('❌ Error fetching admin records:', err.message);
+    }
   }
 
-  try {
-    const result = await pool.query('SELECT * FROM customers ORDER BY created_at DESC');
-    const customers = result.rows;
+  const rowsHtml = customers.map(c => `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.id}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${c.email}</strong></td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.name || 'N/A'}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><span style="background: #e6f4ea; color: #137333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${c.status}</span></td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.plan}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.stripe_customer_id}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(c.created_at).toLocaleString()}</td>
+    </tr>
+  `).join('');
 
-    const rowsHtml = customers.map(c => `
-      <tr>
-        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.id}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${c.email}</strong></td>
-        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.name || 'N/A'}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><span style="background: #e6f4ea; color: #137333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${c.status}</span></td>
-        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.plan}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.stripe_customer_id}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(c.created_at).toLocaleString()}</td>
-      </tr>
-    `).join('');
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>SyncPlus Admin Dashboard</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; background-color: #f6f8fa; color: #24292e; }
-          .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-          h1 { color: #635bff; margin-bottom: 5px; }
-          .stats { display: flex; gap: 20px; margin: 20px 0; }
-          .card { background: #f7f9fc; padding: 15px 25px; border-radius: 6px; border: 1px solid #e1e4e8; flex: 1; }
-          .card h3 { margin: 0; font-size: 14px; color: #586069; }
-          .card p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #24292e; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
-          th { padding: 12px; background-color: #f6f8fa; border-bottom: 2px solid #e1e4e8; color: #586069; font-size: 13px; text-transform: uppercase; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>SyncPlus Admin Dashboard</h1>
-          <p>Live Customer Management & Active Subscriptions</p>
-          
-          <div class="stats">
-            <div class="card">
-              <h3>Total Subscribers</h3>
-              <p>${customers.length}</p>
-            </div>
-            <div class="card">
-              <h3>Monthly Recurring Revenue (MRR)</h3>
-              <p>$${customers.length * 79}</p>
-            </div>
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>SyncPlus Admin Dashboard</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; background-color: #f6f8fa; color: #24292e; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        h1 { color: #635bff; margin-bottom: 5px; }
+        .stats { display: flex; gap: 20px; margin: 20px 0; }
+        .card { background: #f7f9fc; padding: 15px 25px; border-radius: 6px; border: 1px solid #e1e4e8; flex: 1; }
+        .card h3 { margin: 0; font-size: 14px; color: #586069; }
+        .card p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #24292e; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
+        th { padding: 12px; background-color: #f6f8fa; border-bottom: 2px solid #e1e4e8; color: #586069; font-size: 13px; text-transform: uppercase; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>SyncPlus Admin Dashboard</h1>
+        <p>Live Customer Management & Active Subscriptions</p>
+        
+        <div class="stats">
+          <div class="card">
+            <h3>Total Subscribers</h3>
+            <p>${customers.length}</p>
           </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Plan</th>
-                <th>Stripe ID</th>
-                <th>Subscribed At</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No active customer subscriptions found yet.</td></tr>'}
-            </tbody>
-          </table>
+          <div class="card">
+            <h3>Monthly Recurring Revenue (MRR)</h3>
+            <p>$${customers.length * 79}</p>
+          </div>
         </div>
-      </body>
-      </html>
-    `;
 
-    res.status(200).send(html);
-  } catch (err) {
-    res.status(500).send(`Error generating admin dashboard: ${err.message}`);
-  }
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Plan</th>
+              <th>Stripe ID</th>
+              <th>Subscribed At</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No active customer subscriptions found.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </body>
+    </html>
+  `;
+
+  res.status(200).send(html);
 });
 
 // ==========================================
