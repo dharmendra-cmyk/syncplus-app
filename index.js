@@ -309,7 +309,7 @@ app.get('/api/inventory', async (req, res) => {
   }
 });
 
-// API to Sync/Upsert Inventory Stock
+// API & Form Handler to Sync/Upsert Inventory Stock
 app.post('/api/inventory/sync', async (req, res) => {
   const activePool = getPool();
   if (!activePool) return res.status(500).json({ error: 'Database not available' });
@@ -332,8 +332,14 @@ app.post('/api/inventory/sync', async (req, res) => {
   `;
 
   try {
-    await activePool.query(query, [sku, productName, quantity, channel || 'Shopify']);
+    await activePool.query(query, [sku, productName, parseInt(quantity), channel || 'Shopify']);
     console.log(`📦 Inventory synced for SKU: ${sku}`);
+    
+    // Redirect back to Admin if submitted via Form
+    if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
+      return res.redirect('/admin');
+    }
+
     res.status(200).json({ success: true, sku, quantity, channel: channel || 'Shopify' });
   } catch (err) {
     console.error('❌ Inventory Sync Error:', err.message);
@@ -341,7 +347,7 @@ app.post('/api/inventory/sync', async (req, res) => {
   }
 });
 
-// Admin Dashboard
+// Admin Dashboard with Interactive Form
 app.get('/admin', async (req, res) => {
   const activePool = getPool();
   let customers = [];
@@ -398,6 +404,12 @@ app.get('/admin', async (req, res) => {
         .card p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #24292e; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 40px; text-align: left; }
         th { padding: 12px; background-color: #f6f8fa; border-bottom: 2px solid #e1e4e8; color: #586069; font-size: 13px; text-transform: uppercase; }
+        .sync-form { background: #f8fafc; padding: 20px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 30px; display: flex; gap: 10px; align-items: flex-end; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+        .form-group label { font-size: 12px; font-weight: bold; color: #475569; }
+        .form-group input, .form-group select { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 14px; }
+        .btn-submit { background: #635bff; color: white; border: none; padding: 9px 18px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .btn-submit:hover { background: #4f46e5; }
       </style>
     </head>
     <body>
@@ -420,6 +432,47 @@ app.get('/admin', async (req, res) => {
           </div>
         </div>
 
+        <h2>Sync Inventory Stock</h2>
+        <form class="sync-form" action="/api/inventory/sync" method="POST">
+          <div class="form-group">
+            <label>SKU</label>
+            <input type="text" name="sku" placeholder="PROD-101" required />
+          </div>
+          <div class="form-group">
+            <label>Product Name</label>
+            <input type="text" name="productName" placeholder="Pro Wireless Earbuds" required />
+          </div>
+          <div class="form-group">
+            <label>Quantity</label>
+            <input type="number" name="quantity" placeholder="150" required />
+          </div>
+          <div class="form-group">
+            <label>Sales Channel</label>
+            <select name="channel">
+              <option value="Shopify">Shopify</option>
+              <option value="Amazon">Amazon</option>
+              <option value="WooCommerce">WooCommerce</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-submit">Sync Stock</button>
+        </form>
+
+        <h2>Multi-Channel Inventory Status</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Product Name</th>
+              <th>Stock Level</th>
+              <th>Channel</th>
+              <th>Last Synced</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${inventoryRows || '<tr><td colspan="5" style="padding: 20px; text-align: center;">No inventory records synced yet.</td></tr>'}
+          </tbody>
+        </table>
+
         <h2>Customer Subscriptions</h2>
         <table>
           <thead>
@@ -435,22 +488,6 @@ app.get('/admin', async (req, res) => {
           </thead>
           <tbody>
             ${customerRows || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No customer subscriptions found.</td></tr>'}
-          </tbody>
-        </table>
-
-        <h2>Multi-Channel Inventory Status</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Product Name</th>
-              <th>Stock Level</th>
-              <th>Channel</th>
-              <th>Last Synced</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${inventoryRows || '<tr><td colspan="5" style="padding: 20px; text-align: center;">No inventory records synced yet.</td></tr>'}
           </tbody>
         </table>
       </div>
