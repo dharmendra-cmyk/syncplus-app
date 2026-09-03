@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // ==========================================
-// 1. POSTGRESQL DATABASE CONNECTION (WITH SAFE FALLBACK)
+// 1. POSTGRESQL DATABASE CONNECTION
 // ==========================================
 let pool = null;
 
@@ -20,7 +20,7 @@ if (process.env.DATABASE_URL) {
   });
   console.log('🔗 PostgreSQL pool configured with provided DATABASE_URL.');
 } else {
-  console.warn('⚠️ DATABASE_URL not found in environment variables. Database operations will be bypassed.');
+  console.warn('⚠️ DATABASE_URL not found in environment variables. DB operations bypassed.');
 }
 
 async function initializeDatabase() {
@@ -40,6 +40,7 @@ async function initializeDatabase() {
     );
   `;
   try {
+    // FIX: Using pool.query instead of db.query
     await pool.query(createTableQuery);
     console.log('🗄️ PostgreSQL table [customers] initialized successfully.');
   } catch (err) {
@@ -51,7 +52,7 @@ initializeDatabase();
 
 async function saveCustomerToDB(customerData) {
   if (!pool) {
-    console.log(`ℹ️ [DB Bypass] Skipping database write for ${customerData.email} (DATABASE_URL not set).`);
+    console.log(`ℹ️ [DB Bypass] Skipping DB write for ${customerData.email} (DATABASE_URL not set).`);
     return;
   }
 
