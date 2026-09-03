@@ -86,6 +86,27 @@ async function saveCustomerToDB(customerData) {
   }
 }
 
+async function updateCustomerSubscription(subscription) {
+  const activePool = getPool();
+  if (!activePool) return;
+
+  const stripeCustomerId = subscription.customer;
+  const status = subscription.status; // e.g., 'active', 'canceled', 'past_due'
+
+  const query = `
+    UPDATE customers 
+    SET status = $1, updated_at = CURRENT_TIMESTAMP 
+    WHERE stripe_customer_id = $2;
+  `;
+
+  try {
+    await activePool.query(query, [status, stripeCustomerId]);
+    console.log(`🔄 Updated status to [${status}] for customer: ${stripeCustomerId}`);
+  } catch (err) {
+    console.error('❌ DB Update Error:', err.message);
+  }
+}
+
 // ==========================================
 // 2. EMAIL TRANSPORTER CONFIGURATION
 // ==========================================
@@ -166,10 +187,19 @@ app.post(
     console.log(`⚡ Verified Event Received: [${event.type}] - ID: ${event.id}`);
 
     try {
-      if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const user = await provisionUserAccount(session);
-        await sendWelcomeEmail(user.email, user.name, session.id);
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          const user = await provisionUserAccount(session);
+          await sendWelcomeEmail(user.email, user.name, session.id);
+          break;
+        }
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          await updateCustomerSubscription(subscription);
+          break;
+        }
       }
     } catch (handlerErr) {
       console.error(`❌ Handler Error:`, handlerErr);
@@ -211,7 +241,7 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-// Visual Admin Dashboard Route (Self-Healing)
+// Visual Admin Dashboard Route
 app.get('/admin', async (req, res) => {
   const activePool = getPool();
   let customers = [];
@@ -230,12 +260,14 @@ app.get('/admin', async (req, res) => {
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.id}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${c.email}</strong></td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.name || 'N/A'}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><span style="background: #e6f4ea; color: #137333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${c.status}</span></td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><span style="background: ${c.status === 'active' ? '#e6f4ea' : '#fce8e6'}; color: ${c.status === 'active' ? '#137333' : '#c5221f'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${c.status}</span></td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.plan}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.stripe_customer_id}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(c.created_at).toLocaleString()}</td>
     </tr>
   `).join('');
+
+  const activeCount = customers.filter(c => c.status === 'active').length;
 
   const html = `
     <!DOCTYPE html>
@@ -261,12 +293,12 @@ app.get('/admin', async (req, res) => {
         
         <div class="stats">
           <div class="card">
-            <h3>Total Subscribers</h3>
-            <p>${customers.length}</p>
+            <h3>Active Subscribers</h3>
+            <p>${activeCount}</p>
           </div>
           <div class="card">
             <h3>Monthly Recurring Revenue (MRR)</h3>
-            <p>$${customers.length * 79}</p>
+            <p>$${activeCount * 79}</p>
           </div>
         </div>
 
@@ -283,7 +315,7 @@ app.get('/admin', async (req, res) => {
             </tr>
           </thead>
           <tbody>
-            ${rowsHtml || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No active customer subscriptions found.</td></tr>'}
+            ${rowsHtml || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No customer subscriptions found.</td></tr>'}
           </tbody>
         </table>
       </div>
