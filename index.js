@@ -1,13 +1,82 @@
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const nodemailer = require('nodemailer');
 
 const app = express();
 const port = process.env.PORT || 8080;
 
 // ==========================================
-// 1. STRIPE WEBHOOK ROUTE (RAW BODY ONLY)
-// Must remain BEFORE express.json() so Express passes
-// the unparsed Buffer stream for signature validation.
+// 1. EMAIL TRANSPORTER CONFIGURATION
+// ==========================================
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+// Verify email SMTP connection on server startup
+transporter.verify((error) => {
+  if (error) {
+    console.warn('⚠️ SMTP Configuration Warning:', error.message);
+  } else {
+    console.log('📧 SMTP Transporter initialized successfully');
+  }
+});
+
+// ==========================================
+// 2. AUTOMATED WELCOME EMAIL TRIGGER
+// ==========================================
+async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
+  if (!customerEmail) {
+    console.warn('⚠️ No customer email provided for welcome message');
+    return;
+  }
+
+  const mailOptions = {
+    from: `"SyncPlus Team" <${process.env.SMTP_USER || 'support@syncplus.app'}>`,
+    to: customerEmail,
+    subject: 'Welcome to SyncPlus Pro! 🚀 Account Activated',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+        <h2 style="color: #635bff;">Welcome to SyncPlus Pro, ${customerName || 'Merchant'}!</h2>
+        <p>Thank you for subscribing to the <strong>SyncPlus Pro Plan ($79/mo)</strong>. Your payment has been processed successfully.</p>
+        
+        <div style="background-color: #f7f9fc; border-left: 4px solid #635bff; padding: 15px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Order Confirmation ID:</strong> ${sessionId}</p>
+          <p style="margin: 5px 0 0 0;"><strong>Status:</strong> Active Pro Membership</p>
+        </div>
+
+        <h3>Next Steps to Get Started:</h3>
+        <ol>
+          <li>Log in to your SyncPlus dashboard using this email address.</li>
+          <li>Connect your Shopify or ERP inventory endpoints.</li>
+          <li>Set up automated sync frequencies for your catalog.</li>
+        </ol>
+
+        <p>If you have any questions or need assistance with initial catalog mapping, reply directly to this email or reach out via Instagram DM.</p>
+        
+        <br>
+        <p>Best regards,<br><strong>The SyncPlus Team</strong></p>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✉️ Welcome email dispatched to ${customerEmail} (Message ID: ${info.messageId})`);
+  } catch (err) {
+    console.error(`❌ Error dispatching welcome email to ${customerEmail}:`, err.message);
+  }
+}
+
+// ==========================================
+// 3. STRIPE WEBHOOK ROUTE (RAW BODY ONLY)
+// Declared BEFORE express.json() to maintain unparsed
+// Buffer for cryptographic signature validation.
 // ==========================================
 app.post(
   '/webhook',
@@ -24,7 +93,7 @@ app.post(
     let event;
 
     try {
-      // Constructs and cryptographically verifies event using raw buffer
+      // Construct and cryptographically verify event using raw buffer
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
       console.error(`❌ Webhook Signature Verification Error: ${err.message}`);
@@ -38,11 +107,14 @@ app.post(
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object;
-          console.log(`✅ Checkout Session Completed: ${session.id}`);
-          console.log(`Customer Email: ${session.customer_details?.email}`);
-          
-          // Trigger customer account provisioning or activation workflow
-          await handleSuccessfulCheckout(session);
+          const customerEmail = session.customer_details?.email;
+          const customerName = session.customer_details?.name;
+
+          console.log(`✅ Successful Checkout Session: ${session.id}`);
+          console.log(`Customer Email: ${customerEmail}`);
+
+          // Trigger automated onboarding welcome email
+          await sendWelcomeEmail(customerEmail, customerName, session.id);
           break;
         }
 
@@ -66,30 +138,13 @@ app.post(
       console.error(`❌ Handler Execution Error for event [${event.type}]:`, handlerErr);
     }
 
-    // Always respond with 200 OK to acknowledge receipt
+    // Always acknowledge receipt back to Stripe with 200 OK
     res.status(200).json({ received: true });
   }
 );
 
 // ==========================================
-// 2. HELPER FUNCTIONS FOR WORKFLOW AUTOMATION
-// ==========================================
-async function handleSuccessfulCheckout(session) {
-  // Placeholder for user account provisioning logic (e.g., Database write, API key generation)
-  const customerData = {
-    stripeCustomerId: session.customer,
-    email: session.customer_details?.email,
-    name: session.customer_details?.name,
-    subscriptionStatus: 'active',
-    createdAt: new Date().toISOString()
-  };
-
-  console.log('📦 Provisioning user access for:', customerData);
-  // Example: await db.users.create({ data: customerData });
-}
-
-// ==========================================
-// 3. GLOBAL PARSERS & MIDDLEWARE
+// 4. GLOBAL PARSERS & MIDDLEWARE
 // Applied strictly AFTER the raw /webhook route.
 // ==========================================
 app.use(express.json());
@@ -103,7 +158,7 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 4. APPLICATION ROUTES
+// 5. APPLICATION ROUTES
 // ==========================================
 app.get('/', (req, res) => {
   res.status(200).send('SyncPlus API is running successfully.');
@@ -124,7 +179,7 @@ app.post('/api/sync', (req, res) => {
 });
 
 // ==========================================
-// 5. GLOBAL ERROR HANDLER
+// 6. GLOBAL ERROR HANDLER
 // ==========================================
 app.use((err, req, res, next) => {
   console.error('Unhandled Application Error:', err.stack);
@@ -132,7 +187,7 @@ app.use((err, req, res, next) => {
 });
 
 // ==========================================
-// 6. SERVER INITIALIZATION
+// 7. SERVER INITIALIZATION
 // ==========================================
 app.listen(port, () => {
   console.log(`🚀 SyncPlus Server running on port ${port}`);
