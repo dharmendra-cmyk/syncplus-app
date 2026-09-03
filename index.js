@@ -115,7 +115,7 @@ async function updateCustomerSubscription(subscription) {
 }
 
 // ==========================================
-// 2. EMAIL TRANSPORTER
+// 2. EMAIL TRANSPORTER & ALERT HELPERS
 // ==========================================
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -126,6 +126,35 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
+
+async function sendLowStockAlert(sku, productName, quantity, channel) {
+  if (!process.env.SMTP_USER) return;
+
+  const mailOptions = {
+    from: `"SyncPlus Alerts" <${process.env.SMTP_USER}>`,
+    to: process.env.SMTP_USER,
+    subject: `⚠️ Low Stock Alert: SKU ${sku} (${quantity} left)`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e4e8; border-radius: 8px;">
+        <h2 style="color: #d97706;">⚠️ Low Stock Threshold Warning</h2>
+        <p>The inventory level for <strong>${productName}</strong> has dropped below threshold level.</p>
+        <ul>
+          <li><strong>SKU:</strong> ${sku}</li>
+          <li><strong>Remaining Quantity:</strong> ${quantity}</li>
+          <li><strong>Channel:</strong> ${channel}</li>
+        </ul>
+        <p>Please restock immediately to avoid stockout on sales channels.</p>
+      </div>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`✉️ Low stock alert dispatched for SKU: ${sku}`);
+  } catch (err) {
+    console.error(`❌ Alert Email Error:`, err.message);
+  }
+}
 
 async function provisionUserAccount(session) {
   const customerData = {
@@ -142,10 +171,10 @@ async function provisionUserAccount(session) {
 }
 
 async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
-  if (!customerEmail) return;
+  if (!customerEmail || !process.env.SMTP_USER) return;
 
   const mailOptions = {
-    from: `"SyncPlus Team" <${process.env.SMTP_USER || 'support@syncplus.app'}>`,
+    from: `"SyncPlus Team" <${process.env.SMTP_USER}>`,
     to: customerEmail,
     subject: 'Welcome to SyncPlus Pro! 🚀 Account Activated',
     html: `
@@ -320,6 +349,9 @@ app.post('/api/inventory/sync', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: sku, productName, quantity' });
   }
 
+  const stockQty = parseInt(quantity);
+  const targetChannel = channel || 'Shopify';
+
   const query = `
     INSERT INTO inventory (sku, product_name, quantity, channel, last_synced)
     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
@@ -332,22 +364,27 @@ app.post('/api/inventory/sync', async (req, res) => {
   `;
 
   try {
-    await activePool.query(query, [sku, productName, parseInt(quantity), channel || 'Shopify']);
-    console.log(`📦 Inventory synced for SKU: ${sku}`);
+    await activePool.query(query, [sku, productName, stockQty, targetChannel]);
+    console.log(`📦 Inventory synced for SKU: ${sku} (${stockQty} units)`);
+
+    // Check low stock threshold alert (under 10 units)
+    if (stockQty < 10) {
+      await sendLowStockAlert(sku, productName, stockQty, targetChannel);
+    }
     
     // Redirect back to Admin if submitted via Form
     if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
       return res.redirect('/admin');
     }
 
-    res.status(200).json({ success: true, sku, quantity, channel: channel || 'Shopify' });
+    res.status(200).json({ success: true, sku, quantity: stockQty, channel: targetChannel });
   } catch (err) {
     console.error('❌ Inventory Sync Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Admin Dashboard with Interactive Form
+// Admin Dashboard
 app.get('/admin', async (req, res) => {
   const activePool = getPool();
   let customers = [];
@@ -377,15 +414,22 @@ app.get('/admin', async (req, res) => {
     </tr>
   `).join('');
 
-  const inventoryRows = inventory.map(i => `
-    <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${i.sku}</strong></td>
-      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.product_name}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.quantity}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.channel}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(i.last_synced).toLocaleString()}</td>
-    </tr>
-  `).join('');
+  const inventoryRows = inventory.map(i => {
+    const isLowStock = i.quantity < 10;
+    return `
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${i.sku}</strong></td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.product_name}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">
+          <span style="background: ${isLowStock ? '#fef3c7' : '#f0fdf4'}; color: ${isLowStock ? '#b45309' : '#15803d'}; padding: 4px 10px; border-radius: 4px; font-weight: bold;">
+            ${i.quantity} ${isLowStock ? '⚠️ Low Stock' : ''}
+          </span>
+        </td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.channel}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(i.last_synced).toLocaleString()}</td>
+      </tr>
+    `;
+  }).join('');
 
   const activeCount = customers.filter(c => c.status === 'active').length;
 
