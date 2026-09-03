@@ -101,9 +101,9 @@ const transporter = nodemailer.createTransport({
 // ==========================================
 async function provisionUserAccount(session) {
   const customerData = {
-    stripeCustomerId: session.customer,
-    email: session.customer_details?.email,
-    name: session.customer_details?.name,
+    stripeCustomerId: session.customer || `cus_mock_${Date.now()}`,
+    email: session.customer_details?.email || 'test@syncplus.app',
+    name: session.customer_details?.name || 'Valued Customer',
     plan: 'SyncPlus Pro ($79/mo)',
     status: 'active',
     sessionId: session.id
@@ -158,6 +158,8 @@ app.post(
       console.error(`❌ Webhook Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
+
+    console.log(`⚡ Verified Event Received: [${event.type}] - ID: ${event.id}`);
 
     try {
       if (event.type === 'checkout.session.completed') {
