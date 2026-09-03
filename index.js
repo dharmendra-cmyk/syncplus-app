@@ -91,7 +91,7 @@ async function updateCustomerSubscription(subscription) {
   if (!activePool) return;
 
   const stripeCustomerId = subscription.customer;
-  const status = subscription.status; // e.g., 'active', 'canceled', 'past_due'
+  const status = subscription.status;
 
   const query = `
     UPDATE customers 
@@ -215,8 +215,72 @@ app.post(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Landing Page Route
 app.get('/', (req, res) => {
-  res.status(200).send('SyncPlus API is running successfully.');
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>SyncPlus Pro - Real-Time Inventory Sync</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 40px; border-radius: 12px; border: 1px solid #334155; text-align: center; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h1 { color: #38bdf8; margin-top: 0; }
+        .price { font-size: 42px; font-weight: bold; margin: 20px 0; }
+        .price span { font-size: 18px; color: #94a3b8; }
+        ul { text-align: left; padding-left: 20px; color: #cbd5e1; margin-bottom: 30px; line-height: 1.8; }
+        .btn { background: #635bff; color: white; border: none; padding: 14px 28px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; width: 80%; transition: background 0.2s; }
+        .btn:hover { background: #4f46e5; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>SyncPlus Pro</h1>
+        <p>Automate multi-channel inventory control.</p>
+        <div class="price">$79 <span>/ month</span></div>
+        <ul>
+          <li>Real-time multi-channel sync</li>
+          <li>PostgreSQL database audit logging</li>
+          <li>Automated order fulfillment tracking</li>
+          <li>24/7 Webhook monitoring</li>
+        </ul>
+        <a href="/checkout" class="btn">Subscribe Now</a>
+      </div>
+    </body>
+    </html>
+  `;
+  res.status(200).send(html);
+});
+
+// Checkout Session Redirect Endpoint
+app.get('/checkout', async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'SyncPlus Pro Plan',
+              description: 'Real-time multi-channel inventory synchronization',
+            },
+            unit_amount: 7900,
+            recurring: { interval: 'month' },
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: `https://syncplus-app-production.up.railway.app/admin?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `https://syncplus-app-production.up.railway.app/`,
+    });
+
+    res.redirect(303, session.url);
+  } catch (err) {
+    console.error('❌ Checkout Error:', err.message);
+    res.status(500).send(`Checkout Session Error: ${err.message}`);
+  }
 });
 
 app.get('/health', (req, res) => {
@@ -241,7 +305,7 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
-// Visual Admin Dashboard Route
+// Admin Dashboard Route
 app.get('/admin', async (req, res) => {
   const activePool = getPool();
   let customers = [];
