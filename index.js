@@ -122,8 +122,22 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
     subject: 'Welcome to SyncPlus Pro! 🚀 Account Activated',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2>Welcome to SyncPlus Pro, ${customerName || 'Merchant'}!</h2>
-        <p>Your subscription is active. Session ID: ${sessionId}</p>
+        <h2 style="color: #635bff;">Welcome to SyncPlus Pro, ${customerName || 'Merchant'}!</h2>
+        <p>Thank you for subscribing to the <strong>SyncPlus Pro Plan ($79/mo)</strong>. Your account has been provisioned successfully.</p>
+        
+        <div style="background-color: #f7f9fc; border-left: 4px solid #635bff; padding: 15px; margin: 20px 0;">
+          <p style="margin: 0;"><strong>Session ID:</strong> ${sessionId}</p>
+          <p style="margin: 5px 0 0 0;"><strong>Status:</strong> Active Pro Membership</p>
+        </div>
+
+        <h3>Next Steps:</h3>
+        <ol>
+          <li>Log in to your SyncPlus dashboard using this email address.</li>
+          <li>Connect your Shopify or ERP inventory endpoints.</li>
+          <li>Set up automated sync frequencies.</li>
+        </ol>
+
+        <p>Best regards,<br><strong>The SyncPlus Team</strong></p>
       </div>
     `,
   };
@@ -155,7 +169,7 @@ app.post(
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
-      console.error(`❌ Webhook Error: ${err.message}`);
+      console.error(`❌ Webhook Verification Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
