@@ -1,24 +1,57 @@
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 8080;
 
 // ==========================================
-// 1. EMAIL TRANSPORTER CONFIGURATION
+// 1. DATABASE SETUP (SIMPLE FILE/JSON OR SQLITE)
+// Persistence store for provisioning customer records
+// ==========================================
+const DB_FILE = path.join(__dirname, 'customers.json');
+
+// Initialize database storage file if it doesn't exist
+if (!fs.existsSync(DB_FILE)) {
+  fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
+}
+
+function saveCustomerToDB(customerData) {
+  try {
+    const rawData = fs.readFileSync(DB_FILE);
+    const customers = JSON.parse(rawData);
+    
+    // Check if customer already exists
+    const existingIndex = customers.findIndex(c => c.stripeCustomerId === customerData.stripeCustomerId);
+    
+    if (existingIndex > -1) {
+      customers[existingIndex] = { ...customers[existingIndex], ...customerData, updatedAt: new Date().toISOString() };
+    } else {
+      customers.push({ ...customerData, createdAt: new Date().toISOString() });
+    }
+    
+    fs.writeFileSync(DB_FILE, JSON.stringify(customers, null, 2));
+    console.log(`💾 Persisted customer record for: ${customerData.email}`);
+  } catch (err) {
+    console.error('❌ Database Write Error:', err.message);
+  }
+}
+
+// ==========================================
+// 2. EMAIL TRANSPORTER CONFIGURATION
 // ==========================================
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true for 465, false for other ports
+  secure: false,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
 });
 
-// Verify email connection on startup
 transporter.verify((error) => {
   if (error) {
     console.warn('⚠️ SMTP Configuration Warning:', error.message);
@@ -28,18 +61,20 @@ transporter.verify((error) => {
 });
 
 // ==========================================
-// 2. HELPER FUNCTIONS
+// 3. WORKFLOW HELPERS
 // ==========================================
 async function provisionUserAccount(session) {
-  const customerEmail = session.customer_details?.email;
-  const customerName = session.customer_details?.name;
-  
-  console.log(`📦 Provisioning SyncPlus Pro account for ${customerEmail}...`);
-  
-  // Database insertion logic goes here
-  // e.g., await db.users.create({ data: { email: customerEmail, stripeId: session.customer } });
-  
-  return { email: customerEmail, name: customerName };
+  const customerData = {
+    stripeCustomerId: session.customer,
+    email: session.customer_details?.email,
+    name: session.customer_details?.name,
+    plan: 'SyncPlus Pro ($79/mo)',
+    status: 'active',
+    sessionId: session.id
+  };
+
+  saveCustomerToDB(customerData);
+  return customerData;
 }
 
 async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
@@ -86,9 +121,9 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
 }
 
 // ==========================================
-// 3. STRIPE WEBHOOK ROUTE (RAW BODY ONLY)
-// Must be declared BEFORE express.json() so Express passes
-// the raw unparsed Buffer stream for signature verification.
+// 4. STRIPE WEBHOOK ROUTE (RAW BODY ONLY)
+// Declared BEFORE express.json() to maintain unparsed
+// Buffer for cryptographic signature validation.
 // ==========================================
 app.post(
   '/webhook',
@@ -105,7 +140,6 @@ app.post(
     let event;
 
     try {
-      // Constructs and cryptographically verifies the event signature
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
       console.error(`❌ Webhook Signature Verification Error: ${err.message}`);
@@ -114,14 +148,12 @@ app.post(
 
     console.log(`⚡ Verified Event Received: [${event.type}] - ID: ${event.id}`);
 
-    // Business Logic Handlers
     try {
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object;
           console.log(`✅ Successful Checkout Session: ${session.id}`);
 
-          // Provision access & dispatch welcome email
           const user = await provisionUserAccount(session);
           await sendWelcomeEmail(user.email, user.name, session.id);
           break;
@@ -146,19 +178,16 @@ app.post(
       console.error(`❌ Error executing handler for event [${event.type}]:`, handlerErr);
     }
 
-    // Always respond with 200 OK to acknowledge receipt back to Stripe
     res.status(200).json({ received: true });
   }
 );
 
 // ==========================================
-// 4. GLOBAL PARSERS & MIDDLEWARE
-// Applied strictly AFTER the raw /webhook route.
+// 5. GLOBAL PARSERS & MIDDLEWARE
 // ==========================================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Global CORS Middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -166,7 +195,7 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 5. APPLICATION ROUTES
+// 6. APPLICATION ROUTES
 // ==========================================
 app.get('/', (req, res) => {
   res.status(200).send('SyncPlus API is running successfully.');
@@ -180,14 +209,18 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.post('/api/sync', (req, res) => {
-  const payload = req.body;
-  console.log('Received API sync payload:', payload);
-  res.status(200).json({ status: 'success', data: payload });
+app.get('/api/customers', (req, res) => {
+  try {
+    const rawData = fs.readFileSync(DB_FILE);
+    const customers = JSON.parse(rawData);
+    res.status(200).json({ count: customers.length, customers });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read database records' });
+  }
 });
 
 // ==========================================
-// 6. GLOBAL ERROR HANDLER
+// 7. GLOBAL ERROR HANDLER
 // ==========================================
 app.use((err, req, res, next) => {
   console.error('Unhandled Application Error:', err.stack);
@@ -195,7 +228,7 @@ app.use((err, req, res, next) => {
 });
 
 // ==========================================
-// 7. SERVER INITIALIZATION
+// 8. SERVER INITIALIZATION
 // ==========================================
 app.listen(port, () => {
   console.log(`🚀 SyncPlus Server running on port ${port}`);
