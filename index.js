@@ -6,22 +6,34 @@ const nodemailer = require('nodemailer');
 const app = express();
 const port = process.env.PORT || 8080;
 
+
+
 // ==========================================
 // 1. POSTGRESQL DATABASE CONNECTION & INIT
 // ==========================================
 let pool = null;
 
 function getPool() {
-  if (!pool && process.env.DATABASE_URL) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL.includes('localhost')
-        ? false
-        : { rejectUnauthorized: false }
-    });
-    console.log('🔗 PostgreSQL pool initialized.');
+  if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      console.error('CRITICAL ERROR: DATABASE_URL is not set in environment variables!');
+      return null;
+    }
+    try {
+      pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.DATABASE_URL.includes('localhost') 
+          ? false 
+          : { rejectUnauthorized: false }
+      });
+      console.log('PostgreSQL pool initialized successfully.');
+    } catch (err) {
+      console.error('Failed to initialize PostgreSQL pool:', err);
+      return null;
+    }
   }
   return pool;
+}
 }
 
 async function initializeDatabase() {
