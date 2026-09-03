@@ -1,41 +1,74 @@
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { Pool } = require('pg');
 const nodemailer = require('nodemailer');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 8080;
 
 // ==========================================
-// 1. DATABASE SETUP (SIMPLE FILE/JSON OR SQLITE)
-// Persistence store for provisioning customer records
+// 1. POSTGRESQL DATABASE CONNECTION
+// Uses DATABASE_URL provided automatically by Railway
 // ==========================================
-const DB_FILE = path.join(__dirname, 'customers.json');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('localhost') 
+    ? false 
+    : { rejectUnauthorized: false }
+});
 
-// Initialize database storage file if it doesn't exist
-if (!fs.existsSync(DB_FILE)) {
-  fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2));
+// Auto-create customers table on startup
+async function initializeDatabase() {
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      stripe_customer_id VARCHAR(255) UNIQUE NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      name VARCHAR(255),
+      plan VARCHAR(100) DEFAULT 'SyncPlus Pro ($79/mo)',
+      status VARCHAR(50) DEFAULT 'active',
+      session_id VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+  try {
+    await pool.query(createTableQuery);
+    console.log('🗄️ PostgreSQL database table [customers] initialized successfully.');
+  } catch (err) {
+    console.error('❌ Database Initialization Error:', err.message);
+  }
 }
 
-function saveCustomerToDB(customerData) {
+initializeDatabase();
+
+// Save or Update Customer in PostgreSQL
+async function saveCustomerToDB(customerData) {
+  const query = `
+    INSERT INTO customers (stripe_customer_id, email, name, plan, status, session_id, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+    ON CONFLICT (stripe_customer_id) 
+    DO UPDATE SET 
+      email = EXCLUDED.email,
+      name = EXCLUDED.name,
+      status = EXCLUDED.status,
+      session_id = EXCLUDED.session_id,
+      updated_at = CURRENT_TIMESTAMP;
+  `;
+  const values = [
+    customerData.stripeCustomerId,
+    customerData.email,
+    customerData.name,
+    customerData.plan,
+    customerData.status,
+    customerData.sessionId
+  ];
+
   try {
-    const rawData = fs.readFileSync(DB_FILE);
-    const customers = JSON.parse(rawData);
-    
-    // Check if customer already exists
-    const existingIndex = customers.findIndex(c => c.stripeCustomerId === customerData.stripeCustomerId);
-    
-    if (existingIndex > -1) {
-      customers[existingIndex] = { ...customers[existingIndex], ...customerData, updatedAt: new Date().toISOString() };
-    } else {
-      customers.push({ ...customerData, createdAt: new Date().toISOString() });
-    }
-    
-    fs.writeFileSync(DB_FILE, JSON.stringify(customers, null, 2));
-    console.log(`💾 Persisted customer record for: ${customerData.email}`);
+    await pool.query(query, values);
+    console.log(`💾 Persisted customer record to Postgres: ${customerData.email}`);
   } catch (err) {
-    console.error('❌ Database Write Error:', err.message);
+    console.error('❌ PostgreSQL Write Error:', err.message);
   }
 }
 
@@ -73,7 +106,7 @@ async function provisionUserAccount(session) {
     sessionId: session.id
   };
 
-  saveCustomerToDB(customerData);
+  await saveCustomerToDB(customerData);
   return customerData;
 }
 
@@ -209,13 +242,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/api/customers', (req, res) => {
+app.get('/api/customers', async (req, res) => {
   try {
-    const rawData = fs.readFileSync(DB_FILE);
-    const customers = JSON.parse(rawData);
-    res.status(200).json({ count: customers.length, customers });
+    const result = await pool.query('SELECT * FROM customers ORDER BY created_at DESC');
+    res.status(200).json({ count: result.rowCount, customers: result.rows });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to read database records' });
+    console.error('❌ Error fetching customers:', err.message);
+    res.status(500).json({ error: 'Failed to fetch customer records' });
   }
 });
 
