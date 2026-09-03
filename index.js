@@ -40,7 +40,6 @@ async function initializeDatabase() {
     );
   `;
   try {
-    // FIX: Using pool.query instead of db.query
     await pool.query(createTableQuery);
     console.log('🗄️ PostgreSQL table [customers] initialized successfully.');
   } catch (err) {
