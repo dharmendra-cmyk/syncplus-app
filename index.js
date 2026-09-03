@@ -219,10 +219,93 @@ app.get('/api/customers', async (req, res) => {
   }
 });
 
+// Visual Admin Dashboard HTML Route
+app.get('/admin', async (req, res) => {
+  if (!pool) {
+    return res.status(503).send('Database not connected.');
+  }
+
+  try {
+    const result = await pool.query('SELECT * FROM customers ORDER BY created_at DESC');
+    const customers = result.rows;
+
+    const rowsHtml = customers.map(c => `
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.id}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${c.email}</strong></td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.name || 'N/A'}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><span style="background: #e6f4ea; color: #137333; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${c.status}</span></td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.plan}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.stripe_customer_id}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(c.created_at).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>SyncPlus Admin Dashboard</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; background-color: #f6f8fa; color: #24292e; }
+          .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+          h1 { color: #635bff; margin-bottom: 5px; }
+          .stats { display: flex; gap: 20px; margin: 20px 0; }
+          .card { background: #f7f9fc; padding: 15px 25px; border-radius: 6px; border: 1px solid #e1e4e8; flex: 1; }
+          .card h3 { margin: 0; font-size: 14px; color: #586069; }
+          .card p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #24292e; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
+          th { padding: 12px; background-color: #f6f8fa; border-bottom: 2px solid #e1e4e8; color: #586069; font-size: 13px; text-transform: uppercase; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>SyncPlus Admin Dashboard</h1>
+          <p>Live Customer Management & Active Subscriptions</p>
+          
+          <div class="stats">
+            <div class="card">
+              <h3>Total Subscribers</h3>
+              <p>${customers.length}</p>
+            </div>
+            <div class="card">
+              <h3>Monthly Recurring Revenue (MRR)</h3>
+              <p>$${customers.length * 79}</p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Plan</th>
+                <th>Stripe ID</th>
+                <th>Subscribed At</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No active customer subscriptions found yet.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </body>
+      </html>
+    `;
+
+    res.status(200).send(html);
+  } catch (err) {
+    res.status(500).send(`Error generating admin dashboard: ${err.message}`);
+  }
+});
+
 // ==========================================
 // 6. SERVER INITIALIZATION
 // ==========================================
 app.listen(port, () => {
   console.log(`🚀 SyncPlus Server running on port ${port}`);
   console.log(`📡 Stripe Webhook Endpoint active at /webhook`);
+  console.log(`📊 Admin Dashboard available at /admin`);
 });
