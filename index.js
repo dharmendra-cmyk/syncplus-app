@@ -6,13 +6,13 @@ const port = process.env.PORT || 8080;
 
 // ==========================================
 // 1. STRIPE WEBHOOK ROUTE (RAW BODY ONLY)
-// Declared BEFORE express.json() so Express passes
+// Must remain BEFORE express.json() so Express passes
 // the unparsed Buffer stream for signature validation.
 // ==========================================
 app.post(
   '/webhook',
   express.raw({ type: 'application/json' }),
-  (req, res) => {
+  async (req, res) => {
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -24,7 +24,7 @@ app.post(
     let event;
 
     try {
-      // Constructs and verifies the event using the raw request body
+      // Constructs and cryptographically verifies event using raw buffer
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
       console.error(`❌ Webhook Signature Verification Error: ${err.message}`);
@@ -34,40 +34,63 @@ app.post(
     console.log(`⚡ Verified Event Received: [${event.type}] - ID: ${event.id}`);
 
     // Business Logic Handlers
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        console.log(`✅ Successful Checkout Session: ${session.id}`);
-        console.log(`Customer Email: ${session.customer_details?.email}`);
-        // Provision new user account / trigger sync workflow
-        break;
-      }
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          console.log(`✅ Checkout Session Completed: ${session.id}`);
+          console.log(`Customer Email: ${session.customer_details?.email}`);
+          
+          // Trigger customer account provisioning or activation workflow
+          await handleSuccessfulCheckout(session);
+          break;
+        }
 
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object;
-        console.log(`✅ Invoice Payment Succeeded: ${invoice.id}`);
-        console.log(`Customer ID: ${invoice.customer}`);
-        break;
-      }
+        case 'invoice.payment_succeeded': {
+          const invoice = event.data.object;
+          console.log(`✅ Invoice Payment Succeeded: ${invoice.id}`);
+          console.log(`Customer ID: ${invoice.customer}`);
+          break;
+        }
 
-      case 'customer.subscription.created': {
-        const subscription = event.data.object;
-        console.log(`✅ Subscription Created: ${subscription.id}`);
-        break;
-      }
+        case 'customer.subscription.created': {
+          const subscription = event.data.object;
+          console.log(`✅ Subscription Created: ${subscription.id}`);
+          break;
+        }
 
-      default:
-        console.log(`ℹ️ Unhandled event type: ${event.type}`);
+        default:
+          console.log(`ℹ️ Unhandled event type: ${event.type}`);
+      }
+    } catch (handlerErr) {
+      console.error(`❌ Handler Execution Error for event [${event.type}]:`, handlerErr);
     }
 
-    // Return 200 OK to acknowledge receipt
+    // Always respond with 200 OK to acknowledge receipt
     res.status(200).json({ received: true });
   }
 );
 
 // ==========================================
-// 2. GLOBAL PARSERS & MIDDLEWARE
-// Placed strictly AFTER the raw /webhook route.
+// 2. HELPER FUNCTIONS FOR WORKFLOW AUTOMATION
+// ==========================================
+async function handleSuccessfulCheckout(session) {
+  // Placeholder for user account provisioning logic (e.g., Database write, API key generation)
+  const customerData = {
+    stripeCustomerId: session.customer,
+    email: session.customer_details?.email,
+    name: session.customer_details?.name,
+    subscriptionStatus: 'active',
+    createdAt: new Date().toISOString()
+  };
+
+  console.log('📦 Provisioning user access for:', customerData);
+  // Example: await db.users.create({ data: customerData });
+}
+
+// ==========================================
+// 3. GLOBAL PARSERS & MIDDLEWARE
+// Applied strictly AFTER the raw /webhook route.
 // ==========================================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -80,7 +103,7 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 3. APPLICATION ROUTES
+// 4. APPLICATION ROUTES
 // ==========================================
 app.get('/', (req, res) => {
   res.status(200).send('SyncPlus API is running successfully.');
@@ -101,7 +124,7 @@ app.post('/api/sync', (req, res) => {
 });
 
 // ==========================================
-// 4. GLOBAL ERROR HANDLER
+// 5. GLOBAL ERROR HANDLER
 // ==========================================
 app.use((err, req, res, next) => {
   console.error('Unhandled Application Error:', err.stack);
@@ -109,7 +132,7 @@ app.use((err, req, res, next) => {
 });
 
 // ==========================================
-// 5. SERVER INITIALIZATION
+// 6. SERVER INITIALIZATION
 // ==========================================
 app.listen(port, () => {
   console.log(`🚀 SyncPlus Server running on port ${port}`);
