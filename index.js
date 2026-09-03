@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // ==========================================
-// 1. POSTGRESQL DATABASE CONNECTION
+// 1. POSTGRESQL DATABASE CONNECTION & INIT
 // ==========================================
 let pool = null;
 
@@ -28,7 +28,7 @@ async function initializeDatabase() {
   const activePool = getPool();
   if (!activePool) return;
 
-  const createTableQuery = `
+  const createCustomersTable = `
     CREATE TABLE IF NOT EXISTS customers (
       id SERIAL PRIMARY KEY,
       stripe_customer_id VARCHAR(255) UNIQUE NOT NULL,
@@ -41,9 +41,22 @@ async function initializeDatabase() {
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
   `;
+
+  const createInventoryTable = `
+    CREATE TABLE IF NOT EXISTS inventory (
+      id SERIAL PRIMARY KEY,
+      sku VARCHAR(100) UNIQUE NOT NULL,
+      product_name VARCHAR(255) NOT NULL,
+      quantity INT NOT NULL DEFAULT 0,
+      channel VARCHAR(100) DEFAULT 'Shopify',
+      last_synced TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
+
   try {
-    await activePool.query(createTableQuery);
-    console.log('🗄️ PostgreSQL table [customers] initialized successfully.');
+    await activePool.query(createCustomersTable);
+    await activePool.query(createInventoryTable);
+    console.log('🗄️ PostgreSQL tables [customers, inventory] initialized successfully.');
   } catch (err) {
     console.error('❌ DB Init Error:', err.message);
   }
@@ -53,10 +66,7 @@ initializeDatabase();
 
 async function saveCustomerToDB(customerData) {
   const activePool = getPool();
-  if (!activePool) {
-    console.log(`ℹ️ [DB Bypass] Skipping DB write for ${customerData.email} (DATABASE_URL not set).`);
-    return;
-  }
+  if (!activePool) return;
 
   const query = `
     INSERT INTO customers (stripe_customer_id, email, name, plan, status, session_id, updated_at)
@@ -90,9 +100,6 @@ async function updateCustomerSubscription(subscription) {
   const activePool = getPool();
   if (!activePool) return;
 
-  const stripeCustomerId = subscription.customer;
-  const status = subscription.status;
-
   const query = `
     UPDATE customers 
     SET status = $1, updated_at = CURRENT_TIMESTAMP 
@@ -100,15 +107,15 @@ async function updateCustomerSubscription(subscription) {
   `;
 
   try {
-    await activePool.query(query, [status, stripeCustomerId]);
-    console.log(`🔄 Updated status to [${status}] for customer: ${stripeCustomerId}`);
+    await activePool.query(query, [subscription.status, subscription.customer]);
+    console.log(`🔄 Updated status to [${subscription.status}] for: ${subscription.customer}`);
   } catch (err) {
     console.error('❌ DB Update Error:', err.message);
   }
 }
 
 // ==========================================
-// 2. EMAIL TRANSPORTER CONFIGURATION
+// 2. EMAIL TRANSPORTER
 // ==========================================
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -120,9 +127,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// ==========================================
-// 3. WORKFLOW HELPERS
-// ==========================================
 async function provisionUserAccount(session) {
   const customerData = {
     stripeCustomerId: session.customer || `cus_mock_${Date.now()}`,
@@ -162,7 +166,7 @@ async function sendWelcomeEmail(customerEmail, customerName, sessionId) {
 }
 
 // ==========================================
-// 4. STRIPE WEBHOOK ROUTE (RAW BODY ONLY)
+// 3. STRIPE WEBHOOK ROUTE
 // ==========================================
 app.post(
   '/webhook',
@@ -171,16 +175,13 @@ app.post(
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-    if (!endpointSecret) {
-      return res.status(500).send('Missing STRIPE_WEBHOOK_SECRET');
-    }
+    if (!endpointSecret) return res.status(500).send('Missing STRIPE_WEBHOOK_SECRET');
 
     let event;
-
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
     } catch (err) {
-      console.error(`❌ Webhook Verification Error: ${err.message}`);
+      console.error(`❌ Webhook Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
@@ -196,8 +197,7 @@ app.post(
         }
         case 'customer.subscription.updated':
         case 'customer.subscription.deleted': {
-          const subscription = event.data.object;
-          await updateCustomerSubscription(subscription);
+          await updateCustomerSubscription(event.data.object);
           break;
         }
       }
@@ -210,12 +210,12 @@ app.post(
 );
 
 // ==========================================
-// 5. GLOBAL MIDDLEWARE & ROUTES
+// 4. GLOBAL MIDDLEWARE & ROUTES
 // ==========================================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Landing Page Route
+// Landing Page
 app.get('/', (req, res) => {
   const html = `
     <!DOCTYPE html>
@@ -252,7 +252,7 @@ app.get('/', (req, res) => {
   res.status(200).send(html);
 });
 
-// Checkout Session Redirect Endpoint
+// Checkout Redirect
 app.get('/checkout', async (req, res) => {
   try {
     const session = await stripe.checkout.sessions.create({
@@ -283,6 +283,7 @@ app.get('/checkout', async (req, res) => {
   }
 });
 
+// Health Endpoint
 app.get('/health', (req, res) => {
   const activePool = getPool();
   res.status(200).json({
@@ -292,34 +293,73 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/api/customers', async (req, res) => {
+// ==========================================
+// 5. INVENTORY SYNC API & ADMIN ROUTES
+// ==========================================
+
+// API to Fetch All Inventory
+app.get('/api/inventory', async (req, res) => {
   const activePool = getPool();
-  if (!activePool) {
-    return res.status(200).json({ count: 0, customers: [], message: 'Database not connected' });
-  }
+  if (!activePool) return res.status(200).json({ count: 0, inventory: [] });
   try {
-    const result = await activePool.query('SELECT * FROM customers ORDER BY created_at DESC');
-    res.status(200).json({ count: result.rowCount, customers: result.rows });
+    const result = await activePool.query('SELECT * FROM inventory ORDER BY sku ASC');
+    res.status(200).json({ count: result.rowCount, inventory: result.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Admin Dashboard Route
+// API to Sync/Upsert Inventory Stock
+app.post('/api/inventory/sync', async (req, res) => {
+  const activePool = getPool();
+  if (!activePool) return res.status(500).json({ error: 'Database not available' });
+
+  const { sku, productName, quantity, channel } = req.body;
+
+  if (!sku || !productName || quantity === undefined) {
+    return res.status(400).json({ error: 'Missing required fields: sku, productName, quantity' });
+  }
+
+  const query = `
+    INSERT INTO inventory (sku, product_name, quantity, channel, last_synced)
+    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+    ON CONFLICT (sku)
+    DO UPDATE SET
+      product_name = EXCLUDED.product_name,
+      quantity = EXCLUDED.quantity,
+      channel = EXCLUDED.channel,
+      last_synced = CURRENT_TIMESTAMP;
+  `;
+
+  try {
+    await activePool.query(query, [sku, productName, quantity, channel || 'Shopify']);
+    console.log(`📦 Inventory synced for SKU: ${sku}`);
+    res.status(200).json({ success: true, sku, quantity, channel: channel || 'Shopify' });
+  } catch (err) {
+    console.error('❌ Inventory Sync Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin Dashboard
 app.get('/admin', async (req, res) => {
   const activePool = getPool();
   let customers = [];
+  let inventory = [];
 
   if (activePool) {
     try {
-      const result = await activePool.query('SELECT * FROM customers ORDER BY created_at DESC');
-      customers = result.rows;
+      const custResult = await activePool.query('SELECT * FROM customers ORDER BY created_at DESC');
+      customers = custResult.rows;
+
+      const invResult = await activePool.query('SELECT * FROM inventory ORDER BY sku ASC');
+      inventory = invResult.rows;
     } catch (err) {
       console.error('❌ Error fetching admin records:', err.message);
     }
   }
 
-  const rowsHtml = customers.map(c => `
+  const customerRows = customers.map(c => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.id}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${c.email}</strong></td>
@@ -328,6 +368,16 @@ app.get('/admin', async (req, res) => {
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.plan}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${c.stripe_customer_id}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(c.created_at).toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  const inventoryRows = inventory.map(i => `
+    <tr>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;"><strong>${i.sku}</strong></td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.product_name}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.quantity}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${i.channel}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e1e4e8;">${new Date(i.last_synced).toLocaleString()}</td>
     </tr>
   `).join('');
 
@@ -341,19 +391,19 @@ app.get('/admin', async (req, res) => {
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; background-color: #f6f8fa; color: #24292e; }
         .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        h1 { color: #635bff; margin-bottom: 5px; }
+        h1, h2 { color: #635bff; }
         .stats { display: flex; gap: 20px; margin: 20px 0; }
         .card { background: #f7f9fc; padding: 15px 25px; border-radius: 6px; border: 1px solid #e1e4e8; flex: 1; }
         .card h3 { margin: 0; font-size: 14px; color: #586069; }
         .card p { margin: 5px 0 0 0; font-size: 24px; font-weight: bold; color: #24292e; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; text-align: left; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 40px; text-align: left; }
         th { padding: 12px; background-color: #f6f8fa; border-bottom: 2px solid #e1e4e8; color: #586069; font-size: 13px; text-transform: uppercase; }
       </style>
     </head>
     <body>
       <div class="container">
         <h1>SyncPlus Admin Dashboard</h1>
-        <p>Live Customer Management & Active Subscriptions</p>
+        <p>Live Customer Subscriptions & Multi-Channel Inventory Control</p>
         
         <div class="stats">
           <div class="card">
@@ -364,8 +414,13 @@ app.get('/admin', async (req, res) => {
             <h3>Monthly Recurring Revenue (MRR)</h3>
             <p>$${activeCount * 79}</p>
           </div>
+          <div class="card">
+            <h3>Synced SKUs</h3>
+            <p>${inventory.length}</p>
+          </div>
         </div>
 
+        <h2>Customer Subscriptions</h2>
         <table>
           <thead>
             <tr>
@@ -379,7 +434,23 @@ app.get('/admin', async (req, res) => {
             </tr>
           </thead>
           <tbody>
-            ${rowsHtml || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No customer subscriptions found.</td></tr>'}
+            ${customerRows || '<tr><td colspan="7" style="padding: 20px; text-align: center;">No customer subscriptions found.</td></tr>'}
+          </tbody>
+        </table>
+
+        <h2>Multi-Channel Inventory Status</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Product Name</th>
+              <th>Stock Level</th>
+              <th>Channel</th>
+              <th>Last Synced</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${inventoryRows || '<tr><td colspan="5" style="padding: 20px; text-align: center;">No inventory records synced yet.</td></tr>'}
           </tbody>
         </table>
       </div>
