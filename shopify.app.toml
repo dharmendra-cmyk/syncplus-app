@@ -1,6 +1,6 @@
 client_id = "76a38658617eae5b7d726c95c14156ff"
 name = "SyncPlus"
-application_url = "https://ahluwaliasstrategicventure.com"
+application_url = "https://syncplus-app.vercel.app"
 embedded = true
 
 [access_scopes]
