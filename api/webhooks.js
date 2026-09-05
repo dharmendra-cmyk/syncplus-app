@@ -45,10 +45,14 @@ export default async function handler(req, res) {
       .update(rawBody)
       .digest('base64');
 
-    const verified = crypto.timingSafeEqual(
-      Buffer.from(calculatedHmac),
-      Buffer.from(hmacHeader)
-    );
+    const calculatedBuffer = Buffer.from(calculatedHmac);
+const hmacBuffer = Buffer.from(hmacHeader || '');
+
+const verified = 
+  calculatedBuffer.length === hmacBuffer.length && 
+  crypto.timingSafeEqual(calculatedBuffer, hmacBuffer);
+
+console.log('HMAC Verification:', { verified, calculatedHmac, hmacHeader });
 
     if (!verified) {
       return res.status(401).send('Invalid HMAC signature');
