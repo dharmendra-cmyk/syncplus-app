@@ -4,7 +4,7 @@ application_url = "https://ahluwaliasstrategicventure.com"
 embedded = true
 
 [access_scopes]
-scopes = ""
+scopes = "read_products,write_products,read_inventory,write_inventory
 optional_scopes = []
 use_legacy_install_flow = false
 
