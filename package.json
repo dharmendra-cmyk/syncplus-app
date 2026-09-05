@@ -1,18 +1,12 @@
 {
   "name": "syncplus-app",
   "version": "1.0.0",
-  "description": "SyncPlus Pro Backend Server",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "nodemailer": "^6.9.13",
-    "pg": "^8.11.5",
-    "stripe": "^15.10.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "express": "^4.18.2"
   }
 }
