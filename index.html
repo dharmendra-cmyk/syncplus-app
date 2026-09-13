@@ -3,102 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncPlus - Stocky Inventory Alternative</title>
+    <title>SyncPlus Admin Dashboard</title>
+    
+    <!-- Shopify App Bridge CDN -->
+    <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+    <script src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>
+
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f4f6f8;
-            color: #333;
-            text-align: center;
-            padding: 50px 20px;
-            margin: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: #ffffff;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-        h1 {
-            color: #1a1f36;
-            margin-bottom: 10px;
-        }
-        p {
-            color: #4f566b;
-            font-size: 16px;
-            line-height: 1.5;
-            margin-bottom: 30px;
-        }
-        .btn {
-            background-color: #635bff;
-            color: white;
-            border: none;
-            padding: 14px 28px;
-            font-size: 16px;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .btn:hover {
-            background-color: #5145cd;
-        }
-        .dashboard-box {
-            display: none;
-            margin-top: 20px;
-            padding: 20px;
-            background: #e6f4ea;
-            border: 1px solid #34a853;
-            border-radius: 8px;
-            color: #137333;
-        }
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f5f7; color: #333; }
+        h1 { color: #5b36f5; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        button { background: #5b36f5; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #4a2ad4; }
     </style>
 </head>
 <body>
-
-    <div class="container" id="landing-view">
-        <h1>SyncPlus Pro</h1>
-        <p>Automate inventory syncing, purchase orders, and stock forecasting for $79/month. The seamless transition solution for Shopify Stocky users.</p>
-        <button class="btn" id="checkout-button" onclick="startCheckout()">Start 7-Day Free Trial</button>
-    </div>
-
-    <div class="container dashboard-box" id="dashboard-view">
-        <h2>SyncPlus Pro Dashboard</h2>
-        <p><strong>Status:</strong> Active Member</p>
-        <p>Your subscription is active. Welcome to your inventory management suite!</p>
-        <button class="btn" onclick="alert('Accessing SyncPlus Inventory Pro modules...')">Launch Inventory Suite</button>
+    <div class="card">
+        <h1>SyncPlus Dashboard</h1>
+        <p>Successfully installed and loaded with Shopify Session Tokens.</p>
+        <button id="fetch-data-btn">Test Authenticated API Request</button>
+        <div id="output" style="margin-top: 15px; font-family: monospace; font-size: 13px;"></div>
     </div>
 
     <script>
-        // Check if redirected back successfully from Stripe checkout
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('session_id')) {
-            document.getElementById('landing-view').style.display = 'none';
-            document.getElementById('dashboard-view').style.display = 'block';
-        }
+        // Initialize App Bridge
+        const createApp = window['app-bridge'].createApp;
+        const getSessionToken = window['app-bridge-utils'].getSessionToken;
 
-        async function startCheckout() {
-            try {
-                const response = await fetch('/create-checkout-session', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                });
-                const data = await response.json();
-                
-                if (data.url) {
-                    // Redirect directly to the Stripe Checkout URL provided by your backend
-                    window.location.href = data.url;
-                } else {
-                    alert('Error: ' + (data.error || 'Could not start checkout session.'));
+        // Parse query parameters provided by Shopify Admin
+        const urlParams = new URLSearchParams(window.location.search);
+        const shop = urlParams.get('shop');
+        const host = urlParams.get('host');
+
+        if (shop && host) {
+            const app = createApp({
+                apiKey: 'YOUR_SHOPIFY_API_KEY', // Replace or let Shopify inject dynamically
+                host: host,
+                forceRedirect: true
+            });
+
+            // Automatically fetch session token for authenticated backend requests
+            document.getElementById('fetch-data-btn').addEventListener('click', async () => {
+                try {
+                    const token = await getSessionToken(app);
+                    document.getElementById('output').innerText = "Fetching data with Session Token...";
+                    
+                    const response = await fetch('/api/data', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'X-Shop-Domain': shop
+                        }
+                    });
+                    const data = await response.json();
+                    document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                } catch (error) {
+                    document.getElementById('output').innerText = "Error getting session token: " + error.message;
                 }
-            } catch (err) {
-                console.error('Error:', err);
-                alert('Something went wrong initiating checkout.');
-            }
+            });
         }
     </script>
 </body>
