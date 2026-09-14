@@ -26,40 +26,30 @@
     </div>
 
     <script>
-        // Initialize App Bridge
-        const createApp = window['app-bridge'].createApp;
-        const getSessionToken = window['app-bridge-utils'].getSessionToken;
-
-        // Parse query parameters provided by Shopify Admin
         const urlParams = new URLSearchParams(window.location.search);
         const shop = urlParams.get('shop');
         const host = urlParams.get('host');
 
-        if (shop && host) {
+        if (window['app-bridge'] && host) {
+            const createApp = window['app-bridge'].createApp;
+            const getSessionToken = window['app-bridge-utils'].getSessionToken;
+
             const app = createApp({
                 apiKey: '76a38658617ae5b7d726c95c14156ff',
                 host: host,
                 forceRedirect: true
             });
 
-            // Automatically fetch session token for authenticated backend requests
             document.getElementById('fetch-data-btn').addEventListener('click', async () => {
                 try {
                     const token = await getSessionToken(app);
-                    document.getElementById('output').innerText = "Fetching data with Session Token...";
-                    
-                    const response = await fetch('/api/data', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'X-Shop-Domain': shop
-                        }
-                    });
-                    const data = await response.json();
-                    document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+                    document.getElementById('output').innerText = "Session Token generated successfully!";
                 } catch (error) {
                     document.getElementById('output').innerText = "Error getting session token: " + error.message;
                 }
             });
+        } else {
+            document.getElementById('output').innerText = "App must be opened inside Shopify Admin.";
         }
     </script>
 </body>
