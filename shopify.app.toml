@@ -1,10 +1,10 @@
-client_id = "76a38658617eae5b7d726c95c14156ff"
+client_id = "76a38658617ae5b726c95c14156ff"
 name = "SyncPlus"
-application_url = "https://syncplus-app.vercel.app"
+application_url = "https://syncplus-app-production.up.railway.app"
 embedded = true
 
 [access_scopes]
-scopes = "read_products,write_products,read_inventory,write_inventory
+scopes = "read_products,write_products,read_inventory,write_inventory"
 optional_scopes = []
 use_legacy_install_flow = false
 
