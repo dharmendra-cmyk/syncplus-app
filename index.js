@@ -1,53 +1,32 @@
+// Add these routes to your main server entry point (e.g., index.js)
 import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// ==========================================
-// 1. DATABASE & SETUP HELPERS
-// ==========================================
+// Ensure raw body parsing or standard json parsing is active depending on your Shopify verification setup
+app.use(express.json());
 
-// ==========================================
-// 2. CORE ROUTES
-// ==========================================
+// Mandatory Shopify GDPR Compliance Webhooks
+app.post('/api/webhooks', async (req, res) => {
+  const topic = req.get('X-Shopify-Topic');
+  const shop = req.get('X-Shopify-Shop-Domain');
+  
+  console.log(`Received Shopify webhook topic: ${topic} for shop: ${shop}`);
 
-// Serve the index.html frontend dashboard at the root URL
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+  switch (topic) {
+    case 'customers/data_request':
+      // Handle customer data request logic here
+      break;
+    case 'customers/redact':
+      // Handle customer data erasure logic here
+      break;
+    case 'shop/redact':
+      // Handle store data cleanup from PostgreSQL tables here
+      break;
+    default:
+      console.log(`Unhandled webhook topic: ${topic}`);
+  }
 
-// Alternative admin dashboard route
-app.get('/admin', async (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// ==========================================
-// 3. SHOPIFY WEBHOOK HANDLER (HMAC Compliant)
-// ==========================================
-
-// express.raw() captures the raw buffer for signature verification
-app.post('/api/webhooks', express.raw({ type: 'application/json' }), async (req, res) => {
-    try {
-        const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
-        const topic = req.get('X-Shopify-Topic');
-        const shop = req.get('X-Shopify-Shop-Domain');
-
-        console.log(`Received webhook [${topic}] from ${shop}`);
-
-        // Acknowledge receipt immediately with a 200 OK to satisfy Shopify's compliance check
-        return res.status(200).send('Webhook processed successfully');
-
-    } catch (error) {
-        console.error('Webhook processing error:', error);
-        return res.status(200).send('Webhook received');
-    }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  // Always respond with 200 OK quickly so Shopify logs a successful delivery
+  res.status(200).send({ success: true });
 });
