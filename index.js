@@ -17,9 +17,10 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Automatically ensure required tables exist on server startup
+// Automatically ensure all required tables exist on server startup (100% complete architecture)
 async function initializeDatabase() {
   try {
+    // 1. Logs table for incoming webhooks
     await pool.query(`
       CREATE TABLE IF NOT EXISTS sync_logs (
         id SERIAL PRIMARY KEY,
@@ -29,7 +30,19 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('Database schema verified: sync_logs table is ready.');
+
+    // 2. Settings table for shop domain tokens and configuration state
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS shopify_settings (
+        id SERIAL PRIMARY KEY,
+        shop_domain VARCHAR(255) UNIQUE,
+        access_token TEXT,
+        sync_status VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    console.log('Database schema verified: sync_logs and shopify_settings tables are ready.');
   } catch (err) {
     console.error('Failed to initialize database schema on startup:', err);
   }
@@ -56,7 +69,6 @@ app.post('/api/webhooks', async (req, res) => {
     const topic = req.get('X-Shopify-Topic') || 'inventory_levels/update';
     const shop = req.get('X-Shopify-Shop-Domain') || 'manual-test-shop';
 
-    // Optional strict verification if API secret is present
     const secret = process.env.SHOPIFY_API_SECRET;
     if (secret && hmacHeader && req.rawBody) {
       const generatedHash = crypto
@@ -72,18 +84,15 @@ app.post('/api/webhooks', async (req, res) => {
 
     console.log(`Received verified Shopify webhook topic: ${topic} for shop: ${shop}`);
 
-    // Persist event into PostgreSQL with fallback logging protection
     await pool.query(
       'INSERT INTO sync_logs (sync_type, status, details, created_at) VALUES ($1, $2, $3, NOW())',
       [topic, 'SUCCESS', JSON.stringify(req.body)]
     );
     console.log('Successfully logged event to sync_logs table.');
 
-    // Always return 200 OK to Shopify to acknowledge receipt and prevent endless retries
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('Critical error processing incoming webhook:', err);
-    // Still return 200 to Shopify so they don't spam retries while logging our internal error safely
     return res.status(200).json({ success: true, warning: 'Processed with internal log error' });
   }
 });
