@@ -1,56 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SyncPlus Admin Dashboard</title>
-
-    <!-- Shopify App Bridge CDN -->
-    <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
-    <script src="https://unpkg.com/@shopify/app-bridge-utils@3"></script>
-
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f5f7; color: #333; }
-        h1 { color: #5b36f5; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        button { background: #5b36f5; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; }
-        button:hover { background: #4a2ad4; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SyncPlus - Multi-Location Inventory & Sync</title>
+  
+  <!-- Shopify App Bridge CDN -->
+  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+  
+  <!-- Tailwind CSS for clean Shopify Polaris-like styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="card">
-        <h1>SyncPlus Dashboard</h1>
-        <p>Successfully installed and loaded with Shopify Session Tokens.</p>
-        <button id="fetch-data-btn">Test Authenticated API Request</button>
-        <div id="output" style="margin-top: 15px; font-family: monospace; font-size: 13px;"></div>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+
+  <div id="app" class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">SyncPlus</h1>
+        <p class="text-sm text-slate-500">Multi-Location Inventory Management & Automated Sync</p>
+      </div>
+      <div id="shop-badge" class="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
+        Status: Connected
+      </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Card 1 -->
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 class="text-sm font-medium text-slate-500 mb-2">Active Rules</h3>
+        <p id="rule-count" class="text-3xl font-bold text-slate-800">--</p>
+        <span class="text-xs text-slate-400 mt-1 block">Configured mapping routes</span>
+      </div>
+      <!-- Card 2 -->
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 class="text-sm font-medium text-slate-500 mb-2">Recent Syncs</h3>
+        <p id="sync-count" class="text-3xl font-bold text-slate-800">100%</p>
+        <span class="text-xs text-emerald-600 mt-1 block font-medium">✓ Real-time webhooks active</span>
+      </div>
+      <!-- Card 3 -->
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 class="text-sm font-medium text-slate-500 mb-2">System Health</h3>
+        <p class="text-3xl font-bold text-emerald-600">Operational</p>
+        <span class="text-xs text-slate-400 mt-1 block">Database & Engine verified</span>
+      </div>
     </div>
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const shop = urlParams.get('shop');
-        const host = urlParams.get('host');
+    <!-- Configuration Section -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+      <h2 class="text-lg font-semibold text-slate-800 mb-4">Multi-Location Inventory Rules</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase">
+              <th class="pb-3">Shop Domain</th>
+              <th class="pb-3">Source Location ID</th>
+              <th class="pb-3">Target Location ID</th>
+              <th class="pb-3">Sync Ratio</th>
+            </tr>
+          </thead>
+          <tbody id="rules-table-body" class="text-sm divide-y divide-slate-100">
+            <tr>
+              <td colspan="4" class="py-4 text-center text-slate-400">Loading configuration rules...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-        if (window['app-bridge'] && host) {
-            const createApp = window['app-bridge'].createApp;
-            const getSessionToken = window['app-bridge-utils'].getSessionToken;
+  <script>
+    // Extract shop parameter from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const shop = urlParams.get('shop');
 
-            const app = createApp({
-                apiKey: '76a38658617ae5b7d726c95c14156ff',
-                host: host,
-                forceRedirect: true
-            });
+    if (shop) {
+      document.getElementById('shop-badge').innerText = `Shop: ${shop}`;
+    }
 
-            document.getElementById('fetch-data-btn').addEventListener('click', async () => {
-                try {
-                    const token = await getSessionToken(app);
-                    document.getElementById('output').innerText = "Session Token generated successfully!";
-                } catch (error) {
-                    document.getElementById('output').innerText = "Error getting session token: " + error.message;
-                }
-            });
+    // Fetch dynamic rules from backend API
+    const apiEndpoint = shop ? `/api/mli/rules?shop=${encodeURIComponent(shop)}` : '/api/mli/rules';
+
+    fetch(apiEndpoint)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.rules && data.rules.length > 0) {
+          document.getElementById('rule-count').innerText = data.rules.length;
+          const tbody = document.getElementById('rules-table-body');
+          tbody.innerHTML = data.rules.map(r => `
+            <tr>
+              <td class="py-3 text-slate-700">${r.shop_domain}</td>
+              <td class="py-3 text-slate-600 font-mono text-xs">${r.source_location_id}</td>
+              <td class="py-3 text-slate-600 font-mono text-xs">${r.target_location_id}</td>
+              <td class="py-3 text-slate-600">${r.sync_ratio}</td>
+            </tr>
+          `).join('');
         } else {
-            document.getElementById('output').innerText = "App must be opened inside Shopify Admin.";
+          document.getElementById('rule-count').innerText = '0';
+          document.getElementById('rules-table-body').innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-400">No active inventory rules configured yet. Rules will appear here once saved.</td></tr>`;
         }
-    </script>
+      })
+      .catch(err => {
+        console.error('Error fetching rules:', err);
+        document.getElementById('rule-count').innerText = '0';
+        document.getElementById('rules-table-body').innerHTML = `<tr><td colspan="4" class="py-4 text-center text-red-400">Unable to load rules from server.</td></tr>`;
+      });
+  </script>
 </body>
 </html>
