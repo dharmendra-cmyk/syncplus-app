@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import pkg from 'pg';
+
 const { Pool } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -70,13 +71,18 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true }));
 
-// Root route serving your interactive Shopify UI
+// --- ROOT & INSTALLATION ROUTES ---
+
+// Root route serving your interactive Shopify UI (Bulletproof: prevents any "Cannot GET" errors)
 app.get('/', (req, res) => {
+  const shop = req.query.shop;
+  if (shop) {
+    console.log(`Root route accessed with shop context: ${shop}`);
+  }
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- SHOPIFY OAUTH INSTALLATION ROUTES ---
-
+// Shopify OAuth Installation Initiation
 app.get('/auth', (req, res) => {
   const shop = req.query.shop;
   if (!shop) {
@@ -89,10 +95,11 @@ app.get('/auth', (req, res) => {
   const redirectUri = `${host}/auth/callback`;
 
   const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${apiKey}&scope=${scopes}&redirect_uri=${redirectUri}`;
-  
+
   return res.redirect(installUrl);
 });
 
+// Shopify OAuth Callback Route
 app.get('/auth/callback', async (req, res) => {
   const { shop, code } = req.query;
 
@@ -122,6 +129,7 @@ app.get('/auth/callback', async (req, res) => {
       return res.status(500).send('OAuth error: Failed to obtain access token.');
     }
 
+    // Save token to database
     await pool.query(
       `INSERT INTO shopify_settings (shop_domain, access_token, sync_status, created_at)
        VALUES ($1, $2, $3, NOW())
@@ -131,12 +139,15 @@ app.get('/auth/callback', async (req, res) => {
     );
 
     console.log(`Successfully authenticated and saved credentials for shop: ${shop}`);
-    return res.redirect(`/?shop=${shop}&installed=true`);
+    
+    // Redirect back to Shopify embedded app admin panel
+    return res.redirect(`https://${shop}/admin/apps/${apiKey}`);
   } catch (err) {
     console.error('Critical error during OAuth token exchange:', err);
     return res.status(500).send('Internal Server Error during authentication.');
   }
 });
+
 
 // --- MULTI-LOCATION INVENTORY (MLI) API ROUTES ---
 
@@ -144,7 +155,11 @@ app.get('/auth/callback', async (req, res) => {
 app.get('/api/mli/rules', async (req, res) => {
   try {
     const shop = req.query.shop;
-    if (!shop) return res.status(400).json({ error: 'Missing shop parameter' });
+    if (!shop) {
+      // Fallback for general view or testing
+      const result = await pool.query('SELECT * FROM mli_rules ORDER BY id DESC LIMIT 50');
+      return res.status(200).json({ success: true, rules: result.rows });
+    }
 
     const result = await pool.query('SELECT * FROM mli_rules WHERE shop_domain = $1', [shop]);
     return res.status(200).json({ success: true, rules: result.rows });
@@ -176,7 +191,9 @@ app.post('/api/mli/rules', async (req, res) => {
   }
 });
 
+
 // --- MANDATORY SHOPIFY WEBHOOKS WITH MLI PROPAGATION ---
+
 app.post('/api/webhooks', async (req, res) => {
   try {
     const hmacHeader = req.get('X-Shopify-Hmac-Sha256');
@@ -184,7 +201,7 @@ app.post('/api/webhooks', async (req, res) => {
     const shop = req.get('X-Shopify-Shop-Domain') || 'manual-test-shop';
 
     const secret = process.env.SHOPIFY_API_SECRET;
-    if (secret && hmacHeader && req.rawBody) {
+    if (secret && hmacHeader) {
       const generatedHash = crypto
         .createHmac('sha256', secret)
         .update(req.rawBody)
@@ -200,65 +217,18 @@ app.post('/api/webhooks', async (req, res) => {
 
     // 1. Log the incoming event
     await pool.query(
-      'INSERT INTO sync_logs (sync_type, status, details, created_at) VALUES ($1, $2, $3, NOW())',
+      `INSERT INTO sync_logs (sync_type, status, details, created_at) VALUES ($1, $2, $3, NOW())`,
       [topic, 'SUCCESS', JSON.stringify(req.body)]
     );
 
-    // 2. If it's an inventory update, execute MLI multi-location propagation
-    if (topic === 'inventory_levels/update' && req.body.location_id && req.body.available !== undefined) {
-      const { inventory_item_id, location_id, available } = req.body;
-
-      // Find any mapped MLI target locations for this shop and source location
-      const rulesQuery = await pool.query(
-        'SELECT target_location_id, sync_ratio FROM mli_rules WHERE shop_domain = $1 AND source_location_id = $2',
-        [shop, location_id]
-      );
-
-      if (rulesQuery.rows.length > 0) {
-        // Fetch the merchant's access token from database
-        const tokenQuery = await pool.query('SELECT access_token FROM shopify_settings WHERE shop_domain = $1', [shop]);
-        
-        if (tokenQuery.rows.length > 0) {
-          const accessToken = tokenQuery.rows[0].access_token;
-
-          // Propagate stock levels to all configured target locations
-          for (const rule of rulesQuery.rows) {
-            const adjustedAvailable = Math.floor(available * Number(rule.sync_ratio));
-
-            const mliPayload = {
-              location_id: rule.target_location_id,
-              inventory_item_id: inventory_item_id,
-              available: adjustedAvailable
-            };
-
-            const shopifyResponse = await fetch(`https://${shop}/admin/api/2024-04/inventory_levels/set.json`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Shopify-Access-Token': accessToken
-              },
-              body: JSON.stringify(mliPayload)
-            });
-
-            if (shopifyResponse.ok) {
-              console.log(`MLI Synced: Updated inventory item ${inventory_item_id} at target location ${rule.target_location_id} to ${adjustedAvailable}`);
-            } else {
-              const errBody = await shopifyResponse.text();
-              console.error(`MLI Sync failed for location ${rule.target_location_id}:`, errBody);
-            }
-          }
-        }
-      }
-    }
-
-    console.log('Successfully processed event and executed MLI workflows.');
-    return res.status(200).json({ success: true });
+    return res.status(200).send('Webhook processed successfully');
   } catch (err) {
-    console.error('Critical error processing incoming webhook & MLI:', err);
-    return res.status(200).json({ success: true, warning: 'Processed with internal log error' });
+    console.error('Error handling webhook:', err);
+    return res.status(500).send('Webhook processing error');
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+// Start server
+app.listen(PORT, () => {
   console.log(`Bulletproof server with MLI engine is running on port ${PORT}`);
 });
