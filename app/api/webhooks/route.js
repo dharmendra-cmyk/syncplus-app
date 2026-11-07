@@ -17,7 +17,7 @@ export async function POST(req) {
     );
 
     if (!isValid) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
