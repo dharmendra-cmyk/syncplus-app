@@ -1,6 +1,6 @@
 client_id = "76a38658617ae5b726c95c14156ff"
 name = "SyncPlus"
-application_url = "https://syncplus-app.vercel.app"
+application_url = "https://syncpluswebapp.vercel.app"
 embedded = true
 
 [access_scopes]
@@ -21,3 +21,12 @@ compliance_topics = [
   "customers/redact",
   "shop/redact"
 ]
+```[cite: 17]
+
+<Steps>
+<Step title="Update and Save">
+1. Replace the contents of your `shopify.app.toml` file with the code above.
+2. Commit or save your changes.
+*Verification:* Your `application_url` points cleanly to your new Vercel domain.
+</Step>
+</Steps>
