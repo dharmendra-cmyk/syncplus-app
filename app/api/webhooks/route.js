@@ -7,7 +7,7 @@ export async function POST(req) {
     const rawBody = await req.text();
 
     const generatedHash = crypto
-      .createHmac('sha256', process.env.SHOPIFY_API_SECRET)
+      .createHmac('sha256', process.env.SHOPIFY_API_SECRET || process.env.SHOPIFY_WEBHOOK_SECRET)
       .update(rawBody, 'utf8')
       .digest('base64');
 
